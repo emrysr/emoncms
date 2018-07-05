@@ -415,7 +415,8 @@ input[type="range"]{
   $("#feedTrim-confirm").click(function(){
     $modal = $('#feedTrimModal')
     var id = $modal.attr('the_id');
-    var start_date = $modal.find('[name="new_start_date"]').val();
+    var input_date_string = $modal.find('[name="new_start_date"]').val();
+    var start_date = new Date(input_date_string.replace( /(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})/, "$3-$2-$1T$4:$5:$6"))
     feed.trim(id, start_date);
     update();
     $('#feedTrimModal').modal('hide');
