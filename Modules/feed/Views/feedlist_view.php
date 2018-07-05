@@ -128,11 +128,15 @@ input[type="range"]{
     </div>
     <div class="modal-body">
         <p><i class='icon-resize-full'></i> <?php echo _('Select a new start date/time for this feed. No data is deleted'); ?></p>
-        <label>Shift start time</label>
-        <div id="feed_shift_datetimepicker" class="input-append">
-          <input min="-4380" max="4380" value="0" id="trim_start_time_slider" type="range" oninput="showNewStartTime(event)" onchange="showNewStartTime(event)">
-          <span id="feed_shift_slider_value" class="add-on">0</span>
+        <label>Start time</label>
+        <div id="feed_shift_datetimepicker" class="input-append date">
+            <input id="shift_start_time" data-format="dd/MM/yyyy hh:mm:ss" type="text">
+            <span class="add-on"> <i data-time-icon="icon-time" data-date-icon="icon-calendar" class="icon-calendar"></i></span>
         </div>
+        <!--div id="feed_shift_datetimepicker" class="input-append">
+          <input min="-4380" max="4380" value="0" id="shift_start_time_slider" type="range" oninput="showNewStartTime(event)" onchange="showNewStartTime(event)">
+          <span id="feed_shift_slider_value" class="add-on">0</span>
+        </div-->
         <br>
         <br>
         <p><?php echo _('Are you sure you want shift the start date?'); ?></p>
@@ -140,7 +144,7 @@ input[type="range"]{
     </div>
     <div class="modal-footer">
         <button class="btn" data-dismiss="modal" aria-hidden="true"><?php echo _('Cancel'); ?></button>
-        <button id="feedShift-confirm" class="btn btn-primary"><?php echo _('Delete all feed data permanently'); ?></button>
+        <button id="feedShift-confirm" class="btn btn-primary"><?php echo _('Shift start time'); ?></button>
     </div>
 </div>
 
@@ -489,6 +493,14 @@ input[type="range"]{
       $("#export-timezone-offset").val(parseInt(timezoneoffset));
     }
     $('#feedExportModal').modal('show');
+  });
+
+  $('#feed_shift_datetimepicker').datetimepicker({
+    language: 'en-EN'
+  });
+  
+  $('#feed_trim_datetimepicker').datetimepicker({
+    language: 'en-EN'
   });
 
   $('#datetimepicker1').datetimepicker({
