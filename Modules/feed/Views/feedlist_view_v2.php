@@ -445,7 +445,7 @@ function update() {
               out += "<div class='node-feeds "+visible+"' node='"+node+"'>";
               
               for (var feed in nodes[node]) {
-				          var feedid = nodes[node][feed].id;
+                  var feedid = nodes[node][feed].id;
                   out += "<div class='node-feed' feedid="+feedid+">";
                   var checked = ""; if (selected_feeds[feedid]) checked = "checked";
                   out += "<div class='select'><div class='ipad'><input class='feed-select' type='checkbox' feedid='"+feedid+"' "+checked+"/></div></div>";
