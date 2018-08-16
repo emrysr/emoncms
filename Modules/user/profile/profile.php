@@ -511,11 +511,11 @@ function languagecode_to_name($langs) {
             // success or error
             always = function(){
                 // reset form state after ajax call
-                timeout = state == 2 ? 4000 : 1300
-                setTimeout(function(){
-                    $msg.fadeOut('fast',function(){ $(this).text('').show()})
+                timeout_time = state == 2 ? 4000 : 1300 // errors (state=2) take longer to fade away
+                $form.data('clear_message_timeout',setTimeout(function(){
+                    $msg.fadeOut('fast', function(){ $(this).text('').show() })
                     state = 0
-                }, timeout)
+                }, timeout_time))
             }
             // serialize any inputs or hidden fields
             data = $form.serialize()
@@ -532,6 +532,9 @@ function languagecode_to_name($langs) {
             setTimeout(function(){
                 if(state == 0) $msg.text($msg.data('loading-text'))
             }, 200)
+            // remove previous fade out animation if still animating. set the message to empty before j
+            clearTimeout($form.data('clear_message_timeout'))
+            $msg.stop(true,true).text('').show()
 
             // send request
             $.post(url, data).done(success).fail(error).always(always)
