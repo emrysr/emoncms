@@ -97,7 +97,10 @@
             $apikey = str_replace('Bearer ', '', $_SERVER["HTTP_AUTHORIZATION"]);
         }
     }
-
+    // foreach (apache_request_headers() as $header => $value) {
+    //     echo "$header: $value\n";
+    // }
+    // exit();
     $device = false;
     if ($apikey) {
         $session = $user->apikey_session($apikey);

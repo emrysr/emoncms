@@ -26,6 +26,9 @@ function user_controller()
         $allowusersregister = false;
     }
 
+    if ($route->action == 'auth') { $user->mqtt_auth(); }
+    if ($route->action == 'acl') { $user->mqtt_acl(); }
+
     // Load html,css,js pages to the client
     if ($route->format == 'html')
     {

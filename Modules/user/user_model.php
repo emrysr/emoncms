@@ -346,8 +346,115 @@ class User
         
         return array('success'=>false, 'message'=>"Invalid email or verification key");
     }
+    
+    // MQTT AUTH PLUGIN ENDPOINTS
+    /**
+     * called by mqtt server to authenticate user
+     * 
+     * outputs a HTTP status of 200 if OK
+     * @todo: think of Brute Force Protection (eg. 3s delay every 5 attempts)
+     *
+     * @return void
+     */
+    public function mqtt_auth() {
+        // 2xx == ok            - 200 == OK
+        // 4xx == failed        - 401 == unauthorized, 403 == forbidden
+        // 5xx == no response   - 500 == Server Error
+        //
+        /*
+        _POST INPUT:
+        array (
+            'q' => 'user/auth',
+            'username' => 'USER',
+            'password' => 'PASS',
+        )
+        */
+        $username = post('username');
+        $password = post('password');
+        $response = $this->login($username, $password);
+        if( isset($response['success']) && $response['success'] === false ) {
+            http_response_code(401);
+        } else {
+            http_response_code(200);
+        }
 
-    public function login($username, $password, $remembermecheck)
+        $resp[] = "\n\n-------------AUTH-------------";
+        foreach (apache_request_headers() as $header => $value) {
+            $resp[] = "$header: $value";
+        }
+        foreach ($_REQUEST as $key => $value) {
+            $resp[] = "$key: ".var_export($value,1);
+        }
+        file_put_contents('/home/emrys/Documents/emoncms/emrys.txt', implode("\n",$resp), FILE_APPEND);
+        exit();
+    }
+    /**
+     * called by mqtt server to check access control list of authenticated users
+     * 
+     * limit access to topics related to individual users
+     * outputs a HTTP status of 200 if OK
+     * 
+     * @todo: limit access based on $this->get_id() --- problem with mysql overhead
+     *
+     *_POST INPUT:
+     *array (
+     *    'q' => 'user/acl',
+     *    'clientid' => 'CLIENTID',
+     *    'username' => 'USER',
+     *    'topic' => 'TOPIC',
+     *    'access' => 'read',
+     *)
+     * @return void
+     */
+    public function mqtt_acl() {
+        $input_topic = filter_var(prop('topic'), FILTER_SANITIZE_STRING);
+        $input_user = filter_var(prop('username'), FILTER_SANITIZE_STRING);
+        $input_pass = filter_var(prop('password'), FILTER_SANITIZE_STRING);
+        $input_apikey = filter_var(prop('apikey'), FILTER_SANITIZE_STRING);
+        
+        // test if all required values passed in with request
+        $is_posted = strlen($input_topic.$input_user.$input_pass.$input_apikey)>0;
+
+        // if not _POST request then show form
+        if (!$is_posted){
+            echo '<h4>ACL:</h4><form><input name="apikey" placeholder="API Token"><input name="topic" placeholder="topic"><button>Submit</button></form>';
+        }
+        
+        // split mqtt topic into parts - fail if empty
+        $parts = explode('/', $input_topic);
+        $topic['base'] = !empty($parts[0]) ? $parts[0] : '';
+        $topic['user'] = !empty($parts[1]) ? $parts[1] : '';
+        $topic['action'] = !empty($parts[2]) ? $parts[2] : '';
+
+        $user_id = '';
+        $username = '';
+        if (!empty($input_apikey)) {
+            $user_id = $this->get_id_from_apikey($input_apikey);
+            $username = $this->get_username($user_id);
+            $input_user = $username;
+        }
+
+        // test if user is allowed to access topic
+        $response_code = !empty($topic['user']) && $input_user === $topic['user'] ? 200 : 401;
+        http_response_code($response_code);
+
+        // DEBUG
+        $resp[] = "\n--------------ACL------------";
+        $resp['username'] = "username: $username";
+        $resp['user_id'] = "user_id: $user_id";
+        $resp['input_apikey'] = "apikey: $input_apikey";
+        $resp['userid'] = "input_user: $input_user";
+        $resp['topic'] = "topic: ".var_export($topic,1);
+        foreach (apache_request_headers() as $header => $value) {
+            $resp[] = "$header: $value";
+        }
+
+        file_put_contents('/home/emrys/Documents/emoncms/emrys.txt', implode("\n",$resp), FILE_APPEND);
+        exit();
+    }
+    
+
+    public function login($username, $password, $remembermecheck = 0)
     {
         $remembermecheck = (int) $remembermecheck;
 

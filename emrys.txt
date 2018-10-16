@@ -1,0 +1,115 @@
+
+
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Authorization: Bearer cb9579be83678b89a5eb0faea08ad839
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Authorization: Bearer cb9579be83678b89a5eb0faea08ad839
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Authorization: Bearer cb9579be83678b89a5eb0faea08ad839
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Authorization: Bearer cb9579be83678b89a5eb0faea08ad839
+Content-Length: 54
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'cb9579be83678b89a5eb0faea08ad839'
+password: 'abc'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Content-Length: 56
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'emrys'
+password: '0#!JdCecdnazdcS!z75@IUAt'
+
+-------------AUTH-------------
+Host: localhost
+Accept: */*
+Content-Length: 56
+Content-Type: application/x-www-form-urlencoded
+q: 'user/auth'
+username: 'emrys'
+password: '0#!JdCecdnazdcS!z75@IUAt'
+--------------ACL------------
+username: 
+user_id: 
+apikey: 
+input_user: emrys
+topic: array (
+  'base' => 'user',
+  'user' => 'emrys',
+  'action' => 'request',
+)
+Host: localhost
+Accept: */*
+Content-Length: 91
+Content-Type: application/x-www-form-urlencoded
+--------------ACL------------
+username: 
+user_id: 
+apikey: 
+input_user: emrys
+topic: array (
+  'base' => 'user',
+  'user' => 'emrys',
+  'action' => 'request',
+)
+Host: localhost
+Accept: */*
+Content-Length: 90
+Content-Type: application/x-www-form-urlencoded
