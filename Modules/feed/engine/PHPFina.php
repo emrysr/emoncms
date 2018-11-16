@@ -148,6 +148,7 @@ class PHPFina implements engine_methods
     */
     public function post($id,$timestamp,$value,$padding_mode=null)
     {
+        // emrys comment: issue #1109 - log is showing correct value but not storing in phpfina .data??
         $this->log->info("post() id=$id timestamp=$timestamp value=$value padding=$padding_mode");
         
         $id = (int) $id;
@@ -795,8 +796,8 @@ class PHPFina implements engine_methods
             fclose($metafile);
             return $msg;
         }
-        
-        fwrite($metafile,pack("I",0));
+        // emrys comment: issue #1109 - does fwrite need to be done x2      
+        fwrite($metafile,pack("I",0)); 
         fwrite($metafile,pack("I",0));
         fwrite($metafile,pack("I",$meta->interval));
         fwrite($metafile,pack("I",$meta->start_time));
@@ -1269,7 +1270,10 @@ class PHPFina implements engine_methods
     public function clear($feedid) {
         $feedid = (int)$feedid;
         $meta = $this->get_meta($feedid);
+        return array('success'=>false,'message'=>var_export($meta,true));
         if (!$meta) return false;
+        // emrys comment: issue #1109 - does the start time have to be divisible by interval to match any input processes??
+        
         $meta->start_time = 0;
         $datafilePath = $this->dir.$feedid.".dat";
         $f = @fopen($datafilePath, "r+");
@@ -1281,6 +1285,7 @@ class PHPFina implements engine_methods
             fclose($f);
         }
         if (isset($metadata_cache[$feedid])) { unset($metadata_cache[$feedid]); } // Clear static cache
+        // emrys comment: issue #1109 - meta is passed?
         $this->create_meta($feedid, $meta); // create meta first to avoid $this->create() from creating new one
         $this->create($feedid,array('interval'=>$meta->interval));
 
