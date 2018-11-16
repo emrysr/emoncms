@@ -1281,6 +1281,7 @@ class PHPFina implements engine_methods
             fclose($f);
         }
         if (isset($metadata_cache[$feedid])) { unset($metadata_cache[$feedid]); } // Clear static cache
+        if (isset($this->writebuffer[$feedid])) $this->writebuffer[$feedid] = '';
         $this->create_meta($feedid, $meta); // create meta first to avoid $this->create() from creating new one
         $this->create($feedid,array('interval'=>$meta->interval));
 
