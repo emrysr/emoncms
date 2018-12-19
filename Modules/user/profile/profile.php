@@ -100,7 +100,7 @@ function languagecode_to_name($langs) {
             <input id="change-password-submit" type="submit" class="btn btn-primary" value="<?php echo _('Save'); ?>" />
             <input id="change-password-cancel" type="submit" class="btn" value="<?php echo _('Cancel'); ?>" />
         </div>
-
+        
         <br>
         <div id="account">
           <div class="account-item">
@@ -113,7 +113,8 @@ function languagecode_to_name($langs) {
               <span id="msg"></span>
           </div>
         </div>
-	<br>
+        
+	    <br>
         <div class="account-item">
             <button class="btn btn-danger" id="deleteall"><?php echo _('Delete my account'); ?></button>
         </div>
@@ -141,6 +142,36 @@ function languagecode_to_name($langs) {
     <div class="span8">
         <h3><?php echo _('My Profile'); ?></h3>
         <div id="table"></div>
+        
+        <?php
+        if (file_exists("Modules/muc") || file_exists("Modules/device")) {
+        ?>
+        <h3><?php echo _('My Modules'); ?></h3>
+        <table class="table table-hover">
+          <?php
+          if (file_exists("Modules/device")) {
+          ?>
+          <tr>
+              <td class="muted" style="width:150px;"><span><?php echo _('EmonMUC'); ?></span></td>
+              <td><a href="<?php echo $path; ?>muc/view" style="float:right" class="btn btn-small btn-info"><?php echo _('Controllers'); ?></a></td>
+          </tr>
+          <?php
+          }
+          ?>
+          <?php
+          if (file_exists("Modules/device")) {
+          ?>
+          <tr>
+              <td class="muted" style="width:150px;"><span><?php echo _('Device'); ?></span></td>
+              <td><a href="<?php echo $path; ?>device/view" style="float:right" class="btn btn-small btn-info"><?php echo _('Devices'); ?></a></td>
+          </tr>
+          <?php
+          }
+          ?>
+        </table>
+        <?php
+        }
+        ?>
         
         <div id="preferences-section_update_warning" class="well hidden">
             <h4><?php echo _('Please update your database'); ?></h4>
