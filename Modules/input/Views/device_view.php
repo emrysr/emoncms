@@ -64,7 +64,7 @@ input[type="checkbox"] { margin:0px; }
         <span id="api-help" style="float:right"><a href="api"><?php echo _('Input API Help'); ?></a></span>
         <h2><?php echo _('Inputs'); ?></h2>
         
-        <div class="controls" data-spy="affix" data-offset-top="100">
+        <div class="controls affix-top" data-spy="affix" data-offset-top="100">
             <button id="expand-collapse-all" class="btn" title="<?php echo _('Collapse') ?>" data-alt-title="<?php echo _('Expand') ?>"><i class="icon icon-resize-small"></i></button>
             <button id="select-all" class="btn" title="<?php echo _('Select all') ?>" data-alt-title="<?php echo _('Unselect all') ?>"><i class="icon icon-check"></i></button>
             <button class="btn input-delete hide" title="Delete"><i class="icon-trash" ></i></button>

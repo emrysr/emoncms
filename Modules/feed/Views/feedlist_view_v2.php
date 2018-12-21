@@ -82,16 +82,14 @@ body{padding:0!important}
     position:absolute;
 }
 
-#mouse-position{position:absolute;z-index:999999;width:0em;height:0em;background:red}
 @media (min-width: 768px) {
     .container-fluid { padding: 0px 20px 0px 20px; }
 }
 
 </style>
-<div id="mouse-position"></div>
 <div id="feed-header" class="hide">
     <span id="api-help" style="float:right"><a href="<?php echo $path; ?>feed/api"><?php echo _('Feed API Help'); ?></a></span>
-    <h3><?php echo _('Feeds'); ?></h3>
+    <h2><?php echo _('Feeds'); ?></h2>
     
     <div class="controls" data-spy="affix" data-offset-top="100">
         <button id="expand-collapse-all" class="btn" title="<?php echo _('Collapse') ?>" data-alt-title="<?php echo _('Expand') ?>"><i class="icon icon-resize-small"></i></button>
