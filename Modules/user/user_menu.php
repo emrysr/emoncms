@@ -1,10 +1,48 @@
 <?php
     global $session;
+    if($session['userid']>0){
+        $menu['sidebar']['setup'][] = array(
+            'text' => _("My Account"),
+            'icon' => 'user',
+            'path' => 'user/view'
+        );
+        // $menu['user'][] = array(
+        //     'text' => _("Add Shortcut"),
+        //     'icon' => 'plus',
+        //     'path' => 'user/links/add',
+        //     'sort' => 0,
+        //     'active' => 'none'
+        // );
+        // $menu['user'][] = array(
+        //     'text' => _("All Shortcuts"),
+        //     'path' => 'user/links',
+        //     'icon' => 'favorite',
+        //     'sort' => 1,
+        //     'active' => 'none'
+        // );
+        $menu['user'][] = array(
+            'text' => _("My Account"),
+            'icon' => 'user',
+            'path' => 'user/view',
+            'order' => 2
+        );
+        // $menu['user'][] = array(
+        //     'li_class' => 'divider',
+        //     'sort' => 3
+        // );
+        $menu['user'][] = array(
+            'text' => _("Logout"),
+            'icon' => 'logout',
+            'path' => 'user/logout',
+            'order' => 4
+        );
+        
+    } else {
+        $menu['user'][] = array(
+            'text' => _("Login"),
+            'icon' => 'user',
+            'path' => '',
+        );
+    }
 
-    $domain = "messages";
-    bindtextdomain($domain, "Modules/user/locale");
-    bind_textdomain_codeset($domain, 'UTF-8');
-
-    $menu_dropdown_config[] = array('name'=> dgettext($domain, "My Account"), 'icon'=>'icon-user', 'path'=>"user/view", 'session'=>"write", 'order' => 40, 'divider' => true);
-    $menu_right[] = array('name'=> dgettext($domain, "Logout"), 'icon'=>'icon-off icon-white', 'path'=>"user/logout", 'session'=>"write", 'order' => 1000);
-    if (!$session['write']) $menu_right[] = array('name'=>dgettext($domain, "Log In"), 'icon'=>'icon-home icon-white', 'path'=>"user/login", 'order' => 1000);
+    // $menu['includes']['user'][] = view('Modules/user/Views/sidebar.php');

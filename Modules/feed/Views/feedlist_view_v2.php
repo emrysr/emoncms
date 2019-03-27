@@ -122,7 +122,6 @@ body{padding:0!important}
 }
 
 </style>
-<div id="mouse-position"></div>
 <div id="feed-header">
     <span id="api-help" style="float:right"><a href="<?php echo $path; ?>feed/api"><?php echo _('Feed API Help'); ?></a></span>
     <h3><?php echo _('Feeds'); ?></h3>
@@ -366,7 +365,7 @@ var feed_engines = ['MYSQL','TIMESTORE','PHPTIMESERIES','GRAPHITE','PHPTIMESTORE
 
 // auto refresh
 update();
-// setInterval(update,5000);
+setInterval(update,5000);
 
 var firstLoad = true;
 function update() {
