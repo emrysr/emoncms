@@ -119,7 +119,8 @@ function input_controller()
             $deviceModuleInstalled = file_exists('Modules/device');
             return view("Modules/input/Views/input_view.php", array(
                 'path' => $path, 
-                'deviceModule' => $deviceModuleInstalled
+                'deviceModule' => $deviceModuleInstalled,
+                'v' => 2
             ));
         }    
         else if ($device && $route->action == 'schedule') {
