@@ -1,20 +1,3 @@
-<?php
-    global $path;
-    $v = 2;
-    
-    $device_module = false;
-    if (file_exists("Modules/device")) $device_module = true;
-?>
-
-<?php if ($device_module) { ?>
-<script src="<?php echo $path; ?>Modules/device/Views/device.js?v=<?php echo $v; ?>"></script>
-<?php } ?>
-
-<script src="<?php echo $path; ?>Modules/input/Views/input.js?v=<?php echo $v; ?>"></script>
-<script src="<?php echo $path; ?>Modules/feed/feed.js?v=<?php echo $v; ?>"></script>
-<script src="<?php echo $path; ?>Lib/responsive-linked-tables.js?v=<?php echo $v; ?>"></script>
-<script src="<?php echo $path; ?>Lib/vue.min.js"></script>
-
 <style>
 
 .container-fluid { padding: 0px 10px 0px 10px; }
@@ -68,7 +51,7 @@ input[type="checkbox"] { margin:0px; }
     right: 0;
     background: rgba(0,0,0,.1);
 }
-.buttons{ 
+.buttons{
     padding-right: .4em;
 }
 .status-success.node-info::after,
@@ -112,7 +95,7 @@ input[type="checkbox"] { margin:0px; }
         <span id="api-help" style="float:right"><a href="api"><?php echo _('Input API Help'); ?></a></span>
         <h3> <?php echo _('Inputs'); ?></h3>
     </div>
-    
+
     <div id="feedlist-controls" class="controls" data-spy="affix" data-offset-top="100">
         <button id="expand-collapse-all" class="btn" title="<?php echo _('Collapse') ?>" data-alt-title="<?php echo _('Expand') ?>"><i class="icon icon-resize-small"></i></button>
         <button id="select-all" class="btn" title="<?php echo _('Select all') ?>" data-alt-title="<?php echo _('Unselect all') ?>"><i class="icon icon-check"></i></button>
@@ -153,51 +136,93 @@ input[type="checkbox"] { margin:0px; }
       </div>
     </div>
     
-    <div id="table" class="input-list"></div>
+    <!-- <div id="table" class="input-list"></div> -->
     
-    <div id="output"></div>
+    <!-- <div id="output"></div> -->
+
+    <div id="auth-check" class="hide">
+        <i class="icon-exclamation-sign icon-white"></i> Device on ip address: <span id="auth-check-ip"></span> would like to connect
+        <button class="btn btn-small auth-check-btn auth-check-allow">Allow</button>
+    </div>
 
     <div id="input-none" class="alert alert-block hide">
         <h4 class="alert-heading"><?php echo _('No inputs created'); ?></h4>
         <p><?php echo _('Inputs are the main entry point for your monitoring device. Configure your device to post values here, you may want to follow the <a href="api">Input API helper</a> as a guide for generating your request.'); ?></p>
     </div>
-    
+
+    <div id="noprocesses"></div>
+    <div id="table" class="input-list"></div>
+
+    <div id="output"></div>
+
+
     <div id="input-footer" class="hide">
         <button id="device-new" class="btn btn-small" >&nbsp;<i class="icon-plus-sign" ></i>&nbsp;<?php echo _('New device'); ?></button>
     </div>
     <div id="input-loader" class="ajax-loader"></div>
 </div>
 
-<?php if ($device_module) require "Modules/device/Views/device_dialog.php"; ?>
-<?php require "Modules/input/Views/input_dialog.php"; ?>
-<?php require "Modules/process/Views/process_ui.php"; ?>
+<?php
+require "Modules/process/Views/process_ui.php";
+if ($deviceModule) : 
+    require "Modules/device/Views/device_dialog.php";
+    require "Modules/input/Views/input_dialog.php";
+?>
+    <script src="<?php echo $path; ?>Modules/device/Views/device.js"></script>
+<?php endif; ?>
 
+<script src="<?php echo $path; ?>Modules/input/Views/input.js"></script>
+<script src="<?php echo $path; ?>Modules/feed/feed.js"></script>
+<script src="<?php echo $path; ?>Lib/responsive-linked-tables.js"></script>
 <script src="<?php echo $path; ?>Lib/moment.min.js"></script>
 <script>
-    var path = "<?php echo $path; ?>";
-    var device_module = <?php if ($device_module) echo 'true'; else echo 'false'; ?>;
     var _user = {};
     _user.lang = "<?php echo $_SESSION['lang']; ?>";
-    
-    // @todo: standardise these translations functions, also used in admin_main_view.php and feedlist_view.php
-    /**
-     * return object of gettext translated strings
-     *
-     * @return object
-     */
-    function getTranslations(){
-        return {
-            'ID': "<?php echo _('ID'); ?>",
-            'Value': "<?php echo _('Value'); ?>",
-            'Time': "<?php echo _('Time'); ?>",
-            'Updated': "<?php echo _('Updated'); ?>",
-            'Configure your device here': "<?php echo _('Configure your device here'); ?>",
-            'Show node key': "<?php echo _('Show node key'); ?>",
-            'Configure device using device template': "<?php echo _('Configure device using device template'); ?>",
-            'Configure Input processing': "<?php echo _('Configure Input processing') ?>",
-            'Saving': "<?php echo _('Saving') ?>"
-        }
-    }
 </script>
 <script src="<?php echo $path; ?>Lib/user_locale.js"></script>
-<script src="<?php echo $path; ?>Modules/input/Views/input_view.js?v=<?php echo $v; ?>"></script>
+<script src="<?php echo $path; ?>Lib/misc/gettext.js"></script>
+<script src="<?php echo $path; ?>Lib/vue.min.js"></script>
+<script>
+/**
+ * return object of gettext translated strings
+ *
+ * @return {object} key/value pairs for each translated string
+ */
+function getTranslations(){
+    return {
+        'ID': "<?php echo _('ID') ?>",
+        'Value': "<?php echo _('Value') ?>",
+        'Time': "<?php echo _('Time') ?>",
+        'Updated': "<?php echo _('Updated') ?>",
+        'Configure your device here': "<?php echo _("Configure your device here") ?>",
+        'Show node key': "<?php echo _("Show node key") ?>",
+        'Configure Input processing': "<?php echo _("Configure Input processing") ?>",
+        'Configure device using device template': "<?php echo _("Configure device using device template") ?>",
+        'Saving': "<?php echo _("Saving") ?>"
+    }
+}
+</script>
+<script>
+    // global variables for input_view.js
+    var path = "<?php echo $path; ?>";
+    var requestTime = 0;
+    var firstLoad = true;
+    var local_cache_key = 'input_nodes_display';
+    var nodes_display = docCookies.hasItem(local_cache_key) ? JSON.parse(docCookies.getItem(local_cache_key)) : {};
+    var selected_inputs = {};
+    var selected_device = false;
+    var isCollapsed = true;
+
+    var device_templates = {};
+    var firstLoad = true;
+    
+    const DEVICE_MODULE_INSTALLED = <?php echo $deviceModule ? 'true': 'false';?>;
+    
+    if (!DEVICE_MODULE_INSTALLED) {
+        var nodes = {}
+    } else {
+        var devices = {}
+    }
+
+</script>
+<script src="<?php echo $path; ?>Modules/input/Views/input_view.js"></script>
