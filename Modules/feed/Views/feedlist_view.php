@@ -25,10 +25,7 @@ function format_time(time,format){
     formatted_date = moment.unix(time).utc().format(format);
     return formatted_date;
 }
-</script>
 
-<script>
-// @todo: standardise these translations functions, also used in admin_main_view.php and input_view.php
 /**
  * return object of gettext translated strings
  *
@@ -42,23 +39,6 @@ function getTranslations(){
         'Feed Start Time': "<?php echo _('Feed Start Time') ?>",
         'Realtime': "<?php echo _('Realtime') ?>",
         'Daily': "<?php echo _('Daily') ?>"
-    }
-}
-/**
- * wrapper for gettext like string replace function
- */
-function _(str) {
-    return translate(str);
-}
-/**
- * emulate the php gettext function for replacing php strings in js
- */
-function translate(property) {
-    _strings = typeof translations === 'undefined' ? getTranslations() : translations;
-    if (_strings.hasOwnProperty(property)) {
-        return _strings[property];
-    } else {
-        return property;
     }
 }
 </script>

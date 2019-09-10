@@ -634,23 +634,6 @@ $(".row dt").on('click', function(event) {
         _('Copied to clipboard')
     );
 });
-/**
- * wrapper for gettext like string replace function
- */
-function _(str) {
-    return translate(str);
-}
-/**
- * emulate the php gettext function for replacing php strings in js
- */
-function translate(property) {
-    _strings = typeof translations === 'undefined' ? getTranslations() : translations;
-    if (_strings.hasOwnProperty(property)) {
-        return _strings[property];
-    } else {
-        return property;
-    }
-}
 
 var logFileDetails;
 $("#copylogfile").on('click', function(event) {

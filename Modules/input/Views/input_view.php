@@ -141,8 +141,6 @@ input[type="checkbox"] { margin:0px; }
     var device_module = <?php if ($device_module) echo 'true'; else echo 'false'; ?>;
     var _user = {};
     _user.lang = "<?php echo $_SESSION['lang']; ?>";
-    
-    // @todo: standardise these translations functions, also used in admin_main_view.php and feedlist_view.php
     /**
      * return object of gettext translated strings
      *
