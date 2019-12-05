@@ -12,6 +12,7 @@ import redis
 import subprocess
 import time
 import signal
+import os
 
 def handle_sigterm(sig, frame):
   print("Got Termination signal, exiting")
@@ -24,7 +25,11 @@ signal.signal(signal.SIGINT, handle_sigterm)
 def connect_redis():
   while True:
     try:
-      server = redis.Redis()
+      try:
+        redis_host = os.environ['REDIS_HOST']
+      except KeyError:
+        redis_host = ''
+      server = redis.Redis(redis_host)
       if server.ping():
         print("Connected to redis-server")
         sys.stdout.flush()
