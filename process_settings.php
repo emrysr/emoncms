@@ -105,9 +105,13 @@ function ini_check_envvars($config) {
                     if (!isset($_ENV[$match])) {
                         $error_out .= "<p>Error: environment var '${match}' not defined in config section [${section}], setting '${key}'</p>";
                         // no match found remove ENV var overide field
-                        unset($config[$section][$key]);
+                        if (isset($config[$section][$key])) {
+                            unset($config[$section][$key]);
+                        }
                     } else {
-                        echo $value;
+                        if (is_bool($_ENV[$match])) {
+                            $_ENV[$match] = $_ENV[$match] ? 'true' : 'false';
+                        }
                         $newval = str_replace('{{'.$match.'}}', $_ENV[$match], $value);
                         // Convert booleans from strings
                         if ($newval === 'true') {
@@ -115,11 +119,11 @@ function ini_check_envvars($config) {
                         } else if ($newval === 'false') {
                             $newval = false;
 
-                        // Convert numbers from strings
+                            // Convert numbers from strings
                         } else if (is_numeric($newval)) {
                             $newval = $newval + 0;
                         }
-
+                        
                         // Set the new value
                         $config[$section][$key] = $newval;
                     }
@@ -127,6 +131,5 @@ function ini_check_envvars($config) {
             }
         endforeach;endif;
     }
-    // return only arrays with replaced ENV values
     return array_filter($config);
 }
