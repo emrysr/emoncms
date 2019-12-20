@@ -71,24 +71,11 @@ class Admin {
               }
           }
         }
-        $emoncms_modules = "";
-        $emoncmsModulesPath = substr($_SERVER['SCRIPT_FILENAME'], 0, strrpos($_SERVER['SCRIPT_FILENAME'], '/')).'/Modules';  // Set the Modules path
-        $emoncmsModuleFolders = glob("$emoncmsModulesPath/*", GLOB_ONLYDIR);                // Use glob to get all the folder names only
-        foreach($emoncmsModuleFolders as $emoncmsModuleFolder) {                            // loop through the folders
-            if ($emoncms_modules != "")  $emoncms_modules .= " | ";
-            if (file_exists($emoncmsModuleFolder."/module.json")) {                         // JSON Version informatmion exists
-              $json = json_decode(file_get_contents($emoncmsModuleFolder."/module.json"));  // Get JSON version information
-              $jsonAppName = $json->{'name'};
-              $jsonVersion = $json->{'version'};
-              if ($jsonAppName) {
-                $emoncmsModuleFolder = $jsonAppName;
-              }
-              if ($jsonVersion) {
-                $emoncmsModuleFolder = $emoncmsModuleFolder." v".$jsonVersion;
-              }
-            }
-            $emoncms_modules .=  str_replace($emoncmsModulesPath."/", '', $emoncmsModuleFolder);
-        }
+        // make a list of module names and version numbers
+        $emoncms_modules = implode(' | ', array_map(function($mod) {
+            return !empty($mod['version']) ? sprintf('%s v%s', $mod['name'], $mod['version']): $mod['name'];
+        }, Admin::get_modules_data()));
+
         return array('date' => date('Y-m-d H:i:s T'),
                      'system' => $system,
                      'kernel' => $kernel,
@@ -430,6 +417,56 @@ class Admin {
         return $currentfs;
     }
 
+    /**
+     * return list of installed modules and their versions (if available)
+     *
+     * @return array
+     */
+    public static function get_modules_data() {
+        $modulesDir = 'Modules';
+        $moduleFileName = "module.json";
+
+        $emoncmsModulesPath = substr($_SERVER['SCRIPT_FILENAME'], 0, strrpos($_SERVER['SCRIPT_FILENAME'], DIRECTORY_SEPARATOR)).DIRECTORY_SEPARATOR.$modulesDir;  // Set the Modules path
+        $emoncmsModuleFolders = glob("$emoncmsModulesPath/*", GLOB_ONLYDIR);                // Use glob to get all the folder names only
+        foreach($emoncmsModuleFolders as $emoncmsModuleFolder) {                            // loop through the folders
+            $directory = ltrim(str_replace($emoncmsModulesPath, '', $emoncmsModuleFolder), DIRECTORY_SEPARATOR);
+            $version = '';
+            $name = ucfirst($directory);
+            // case in-sensitive pattern match the json file name
+            $jsonFilePath = current(preg_grep(DIRECTORY_SEPARATOR.preg_quote($moduleFileName)."/i", glob(sprintf("%s%s%s",$emoncmsModuleFolder,DIRECTORY_SEPARATOR,"*"))));
+            if (file_exists($jsonFilePath)) {                         // JSON Version informatmion exists
+                $json = json_decode(file_get_contents($jsonFilePath));  // Get JSON version information
+                $name = $json->{'name'};
+                $version = $json->{'version'};
+                $relativeJsonFilePath = $modulesDir.str_replace($emoncmsModulesPath, '', $jsonFilePath);
+            } else {
+                $relativeJsonFilePath = '';
+            }
+            $git_URL = '';
+            if(!empty($relativeJsonFilePath)) {
+                try {
+                    // read the git settings to get the current branch and url
+                    $branch = ltrim(exec("git -C $emoncmsModuleFolder branch --contains HEAD"), "* ");
+                    $repoUrl = exec("git -C $emoncmsModuleFolder ls-remote --get-url origin");
+                    $repoName = str_replace('https://github.com','',$repoUrl);
+                    $repoName = str_replace('git@github.com:','',$repoName);
+                    $repoName = str_replace('.git','',$repoName);
+                } catch(Exception $e) {
+                    // problem running git commands
+                }
+            }
+
+            $emoncms_modules[] = array(
+                'name' => $name,
+                'directory' => $directory,
+                'version' => $version,
+                'file' => $relativeJsonFilePath,
+                'repo_name' => $repoName,
+                'branch' => $branch
+            );
+        }
+        return $emoncms_modules;
+    }
 
     /**
      * return bytes as suitable unit

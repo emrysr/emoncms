@@ -120,7 +120,8 @@ function admin_controller()
                     'log_levels' => $log_levels,
                     'log_level'=>$settings['log']['level'],
                     'log_level_label' => $log_levels[$settings['log']['level']],
-                    'path_to_config'=> $path_to_config
+                    'path_to_config'=> $path_to_config,
+                    'session'=>$session
                 );
                 
                 return view("Modules/admin/admin_main_view.php", $view_data);
@@ -505,6 +506,102 @@ function admin_controller()
                     'message' => $message
                 );
             }*/
+            else if ($route->action == 'modules')
+            {
+                require "Modules/admin/admin_model.php";
+                return Admin::get_modules_data();
+            }
+            // Download latest stable version numbers and compare with installed versions
+            // return array of updatable items and the latest version numbers
+            else if ($route->action == 'updates')
+            {
+                global $emoncms_version;
+                require "Modules/admin/admin_model.php";
+                // @todo: look into other ways to get definitive version numbers
+
+                $versionListToUpdate = array();
+                $actualVersion = $emoncms_version;
+                // Get last stable version information
+                $lastStableVersion = http_request("GET","https://raw.githubusercontent.com/emoncms/emoncms/stable/version.txt",array());
+                if($lastStableVersion) {
+                    if(trim($actualVersion) != trim($lastStableVersion)) {
+                        $versionListToUpdate[] = "Emoncms ".trim($lastStableVersion);
+                    }
+                } else {
+                    return array('success'=>false,'message'=>'Error downloading latest version number','details'=>'Error 500. Apache DNS issue. Restart required.');
+                    
+                }
+                // for all modules with version number available get the current latest version numbers from stable branch
+
+                // cache github responses as session variable
+                $github_refresh_delay_mins = 5;
+
+                foreach($versions = Admin::get_modules_data() as $v) {
+                    $cache_updated = false;
+                    // if version number found check and add updatable modules to list
+                    $jsonAppName = $v['name'];
+                    $jsonVersion = $v['version'];
+                    
+                    // Get JSON last stable version information
+                    if(!isset($_SESSION['latest_modules'])) $_SESSION['latest_modules'] = array();
+                    if (empty($jsonVersion)) continue;
+
+                    // download cache entry for this app if it doesn't exist
+                    // or if previously downloaded older than delay
+                    // or if cache refresh forced
+                    if(!isset($_SESSION['latest_modules'][$jsonAppName]) || 
+                        (isset($_SESSION['latest_modules'][$jsonAppName]['lastupdated']) && $_SESSION['latest_modules'][$jsonAppName]['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
+                        (isset($route->subaction) && $route->subaction === 'refresh') )
+                    {
+                        // @todo: check local path for module before requesting github file
+                        // could be module.json, feed-module/module.json or none
+                        
+                        $repoName = $v['repo_name'];
+                        $branch = $v['branch'];
+                        $jsonFileNameParts = array_filter(explode(DIRECTORY_SEPARATOR, $v['file']));
+                        $directory = $v['directory'];
+
+                        if(!empty($jsonFileNameParts)) {
+                            $jsonFileName = $jsonFileNameParts[2];
+
+                            // https://raw.githubusercontent.com/emoncms/backup/master/backup-module/module.json
+                            $pattern = "https://raw.githubusercontent.com/%s/%s/%s";
+                            $git_URL1 = sprintf($pattern,$repoName,$branch,$jsonFileName);
+                            if(!$jsonData = @file_get_contents($git_URL1)) {
+                                $git_URL2 = sprintf($pattern,$repoName,$branch,$directory.'-module'.DIRECTORY_SEPARATOR.$jsonFileName);
+                                if(!$jsonData = @file_get_contents($git_URL2)) {
+                                    $jsonData = false;
+                                }
+                            }
+                
+                            $_SESSION['latest_modules'][$jsonAppName] = array(
+                                'lastupdated' => time(),
+                                'response' => json_decode($jsonData, true)
+                            );
+                            $cache_updated = true;
+                        }
+                    }
+                    // use the cached version (new or previous)
+                    $jsonRemote = !empty($_SESSION['latest_modules'][$jsonAppName]['response']) ? $_SESSION['latest_modules'][$jsonAppName]['response']: false;
+
+                    if(is_array($jsonRemote)){
+                        $jsonAppNameRemote = $jsonRemote['name'];
+                        $jsonVersionRemote = $jsonRemote['version'];
+                        // Compare actual and last stable versions of the module
+                        if ($jsonVersion && $jsonVersionRemote && $jsonVersion != $jsonVersionRemote){
+                            $versionListToUpdate[] = $jsonAppNameRemote." v".$jsonVersionRemote;
+                        }
+                    }
+                }
+                //remove duplicates and re-index the array
+                $versionListToUpdate = array_values(array_unique($versionListToUpdate));
+                return array(
+                    "lastupdated" => array_values($_SESSION['latest_modules'])[0]['lastupdated'],
+                    "expires" => intval(time() + $github_refresh_delay_mins*60),
+                    "cache_updated" => $cache_updated,
+                    "versions" => $versionListToUpdate
+                );
+            }
         }
     } else {
         // not $session['admin']

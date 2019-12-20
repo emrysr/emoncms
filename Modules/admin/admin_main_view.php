@@ -76,33 +76,25 @@ listItem;
     // UPDATES 
     // -------------------
     ?>
+
     <?php if ($admin_show_update || $allow_emonpi_admin) { ?>
     <section class="d-md-flex justify-content-between align-items-center pb-md-2 border-top pb-md-0 text-right pb-2 px-1">
         <div class="text-left">
             <h3 class="mt-1 mb-0"><?php echo _('Updates'); ?></h3>
             <p><?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?></p>
         </div>
-        <div class="btn-group">
-        <button class="update btn btn-info" type="all" title="<?php echo _('Update All'); ?> - <?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?>">
-            <?php echo _('Full Update'); ?>
-        </button>
-        <button class="btn dropdown-toggle btn-info" data-toggle="collapse" data-target="aside" title="<?php echo _(''); ?>">
-            <span class="caret text-black"></span>
-        </button>
-        <!-- <button class="btn dropdown-toggle btn-info" data-toggle="dropdown">
-            <span class="caret text-black"></span>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="#" title="<?php echo _('Emoncms, Emoncms Modules and Services'); ?>"><?php echo _('Update Emoncms Only'); ?></a></li>
-            <li><a href="#" title=""><?php echo _('Update EmonHub Only'); ?></a></li>
-            <li><a href="#" title="<?php echo _('Select your hardware type and firmware version'); ?>"><?php echo _('Update Firmware Only'); ?></a></li>
-            <li><a href="#" title="<?php echo _('Run this after a manual emoncms update, after installing a new module or to check emoncms database status.'); ?>"><?php echo _('Update Database Only'); ?></a></li>
-            <li class="divider"></li>
-            <li><a href="#" class="update" title="<?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?>"><strong><?php echo _('Update All'); ?></strong></a></li>
-        </ul> -->
+        <div class="d-flex align-items-center">
+            <div class="updates-available" data-first-run></div>
+            <div class="btn-group">
+                <button class="update btn btn-info" type="all" title="<?php echo _('Update All'); ?> - <?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?>">
+                    <?php echo _('Full Update'); ?>
+                </button>
+                <button class="btn dropdown-toggle btn-info" data-toggle="collapse" data-target="aside" title="...">
+                    <span class="caret text-black"></span>
+                </button>
+            </div>
         </div>
     </section>
-    
     <?php 
     // EMONCMS UPDATE
     // -------------------
@@ -113,7 +105,10 @@ listItem;
             <p><?php echo _('Emoncms, Emoncms Modules and Services'); ?></p>
             <p><b>Release info:</b> <a href="https://github.com/emoncms/emoncms/releases"> Emoncms</a></p>
         </div>
-        <a class="update btn btn-info" type="emoncms"><?php echo _('Update Emoncms'); ?></a>
+        <div class="d-flex align-items-center">
+            <div class="updates-available" data-first-run></div>
+            <a class="update btn btn-info" type="emoncms"><?php echo _('Update Emoncms'); ?></a>
+        </div>
     </aside>
 
     <?php 
@@ -424,9 +419,14 @@ listItem;
 </div><!-- eof .admin-container -->
 
 <div id="snackbar" class=""></div>
-
-
 <script>
+    var _user = {};
+    _user.lang = "<?php echo $_SESSION['lang']; ?>";
+</script>
+<script src="<?php echo $path; ?>Lib/user_locale.js"></script>
+<script src="<?php echo $path; ?>Lib/moment.min.js"></script>
+<script>
+
 /**
  * return object of gettext translated strings
  *
@@ -440,13 +440,13 @@ function getTranslations(){
         'Copy to clipboard: Ctrl+C, Enter': "<?php echo _('Copy to clipboard: Ctrl+C, Enter') ?>",
         'Server Information': "<?php echo _('Server Information') ?>",
         'Client Information': "<?php echo _('Client Information') ?>",
-        'Log level: %s': "<?php echo _('Log level: %s') ?>"
+        'Log level: %s': "<?php echo _('Log level: %s') ?>",
+        'New version available:': "<?php echo dgettext('theme_messages','New version available:') ?>",
+        'Latest EmonCMS module version numbers downloaded': "<?php echo _('Latest EmonCMS module version numbers downloaded') ?>",
+        'EmonCMS and EmonCMS Modules up to date': "<?php echo _('EmonCMS and EmonCMS Modules up to date') ?>",
+        'Checked': "<?php echo _('Checked') ?>"
     }
 }
-</script>
-
-
-<script>
 
 function copyTextToClipboard(text, message) {
   var textArea = document.createElement("textarea");
@@ -770,6 +770,7 @@ $(".update").click(function() {
       refresh_updateLog(result);
       // autoupdate every 1s
       updates_log_interval = refresherStart(getUpdateLog, 1000)
+      refresh_updates_button();
     }
   });
 });
@@ -781,6 +782,7 @@ $("#rfm69piupdate").click(function() {
       refresh_updateLog(result);
       // autoupdate every 1s
       updates_log_interval = refresherStart(getUpdateLog, 1000)
+      refresh_updates_button();
     }
   });
 });
@@ -888,5 +890,128 @@ function snackbar(text) {
 function notify(message, css_class, more_info) {
     // @todo: show more information in the user notifications
     snackbar(message);
+}
+
+// get a list of updatable modules and display an indicator to user
+refresh_updates_button();
+
+// hide/show indicator near dropdown or near shown section
+$(document).on('click', '[data-toggle=collapse]', function(event){
+    event.preventDefault();
+    var $this = $(this);
+    var $target = $($this.data('target'));
+    $this.parent().prev().toggle($target.hasClass('in'));
+})
+
+// prevent double clicks from triggering single click on button
+var timer = 0;
+var delay = 200;
+var prevent = false;
+// force update on double click
+$(".updates-available").on("click dblclick", "a", function(event) {
+    var $this = $(this)
+    event.preventDefault();
+    if(event.type === 'dblclick') {
+        clearTimeout(timer);
+        prevent = true;
+        refresh_updates_button(true);
+    } else {
+        timer = setTimeout(function() {
+            var expired = $this.data('expires') < new Date().getTime()/1000|0 
+            if (!prevent) {
+                refresh_updates_button(expired);
+            }
+            prevent = false;
+        }, delay);
+    }
+});
+/**
+ * @param bool force_update true if required to recreate cached value
+ * @return void - shows animation and updates DOM
+ */
+function refresh_updates_button(force_update) {
+    var url = path + 'admin/updates.json'
+    if (force_update) {
+        url = path + 'admin/updates/refresh.json'
+    }
+    $container = $('.updates-available');
+    if(force_update) {
+        // fade and rotate icon to indicate double click recognised:
+        $container.animate({opacity: 0}, {
+            step: function(now,fx) {
+                // take the opacity value (between 0 and 1) in the
+                //  current animation frame and convert to degrees
+                $(this).css('transform','rotate(-'+360/100*(now*100)+'deg)'); 
+            },
+            complete: function() {
+                // reset transform once animation complete
+                $container.css({transform: 'none'});
+            }
+        });
+    } else {
+        $container.animate({opacity: 0})
+    }
+    $.getJSON(url, function(response) {
+        // once data is downloaded. stop the fadeOut and show result
+        if(response.versions.length > 0) {
+            $container.html(makeUpdatesButton(response.versions, response.lastupdated, response.expires))
+            $.each($container, function(i, elem) {
+                $(elem).stop(true,true).css({opacity: 1}).hide().fadeIn();
+                if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
+                    // only show notice to user if not done on page load
+                    notify(_('Latest EmonCMS module version numbers downloaded'));
+                } else {
+                    // if not first run delete value to allow notifictation to show
+                    delete elem.dataset.firstRun;
+                }
+            })
+        } else {
+            $container.html(makeUpdatesButton(response.versions, response.lastupdated, response.expires))
+            $.each($container, function(i, elem) {
+                $(elem).stop(true,true).css({opacity: 1}).show();
+                if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
+                    // @todo: only show main indicator when dropdown hidden, else hide
+                    // @todo: only show dropdown indicator when dropdown shown, else hide
+                    notify(_('EmonCMS and EmonCMS Modules up to date'));
+                } else {
+                    delete elem.dataset.firstRun;
+                }
+            })
+        }
+    });
+}
+/**
+ * produces the html for an indicator that shows available updates
+ * also uses momentjs to show time since last update.
+ * @requires window._user.lang
+ * @requires Lib/user_locale.js
+ * @requires Lib/moment.min.js
+ * 
+ * @return string - <html> for refresh button
+ * 
+ */
+function makeUpdatesButton(versions, lastupdated, expires) {
+    var label = _('EmonCMS and EmonCMS Modules up to date');
+    var classes = 'muted';
+    var opacity = 0.4;
+
+    if (versions.length > 0) {
+        label = _('New version available:');
+        classes = '';
+        opacity = 1;
+    }
+    var html = '<a href="#" class="d-block text-right pr-2 %s" title="%s %s\n%s" data-expires="%s"> \
+    <svg class="icon update_available" style="width:25px;height:25px;opacity:%s"> \
+    <use xlink:href="#icon-update_available"></use> \
+    </svg> \
+    </a>'
+    .replace('%s', classes)
+    .replace('%s', label)
+    .replace('%s', versions.join(' | '));
+    if(moment) {
+        html = html.replace('%s', _('Checked ') + moment.unix(lastupdated).fromNow())
+    }
+    html = html.replace('%s', expires).replace('%s', opacity);
+    return html;
 }
 </script>
