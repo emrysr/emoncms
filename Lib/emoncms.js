@@ -117,3 +117,32 @@ window.onerror = function(msg, source, lineno, colno, error) {
         return true; // true == prevents the firing of the default event handler.
     };
 }
+
+$(function() {
+    var rightNav = $('#right-nav');
+    var userMenuDropdown = rightNav.find('.menu-user #user-dropdown');
+    var dropDown = rightNav.find('.menu-user .dropdown-menu');
+    if(rightNav.length > 0) {
+        $.getJSON('/emoncms/admin/updates.json', function(response) {
+            if(response.hasOwnProperty('updates') && response.updates.length > 0) {
+                var indicator = '<span title="Updates available" style="bottom:0; right:0; position: absolute; font-size: small;border: 1px solid aliceblue;padding: .3em !important;line-height: 1;border-radius: 50%;background: #2eaadf;margin-top: .2em;">' +
+                '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
+                '</span>';
+                // fade in the updates indicator in the top nav
+                $(indicator).appendTo(userMenuDropdown).hide().fadeIn();
+
+                var menuItem = '<li>' +
+                '<a href="http://localhost/emoncms/admin/view" class="d-flex flex-nowrap justify-items-between">' +
+                '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
+                '<span class="ml-1 flex-fill">' + _('Updates Available') + '</span>' +
+                '</a></li>';
+                // show the link in the user dropdown under the divider
+                var separatorIndex = dropDown.find('.divider').index();
+                $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
+            }
+        })
+        .fail(function(xhr, error, message) {
+            console.error(error, message);
+        })
+    }
+})
