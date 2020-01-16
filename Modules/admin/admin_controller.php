@@ -520,13 +520,11 @@ function admin_controller()
                 // Get last stable version information
                 $api_url_pattern = "https://api.github.com/repos/emoncms/%s/releases/latest";
                 $api_url = sprintf($api_url_pattern, "emoncms");
-                // @todo: add an optional config setting to store a custom github "Personal access token"
-                // @todo: use token from the emoncms account & remove developer's token
-                // @see: https://github.com/settings/tokens
-                // @see: https://developer.github.com/v3/#rate-limiting
-                $token = "a7f5430ca08a20d9474a5e1264924723cf600d77"; // associated to https://github.com/emrysr (max.6000 requests per hour) 2020-01-15
-                if (isset($settings['github']['token'])) {
+                if (!empty($settings['github']['token'])) {
                     $token = $settings['github']['token'];
+                } else {
+                    return array("success"=>false,"message"=>"Github Access Token missing","details"=>"https://github.com/settings/tokens");
+                    $log->error('No github access token in settings');
                 }
                 if($apiResponse = http_request("GET", $api_url, array(), array("Authorization: token $token"))) {
                     $lastStableVersion = '';
