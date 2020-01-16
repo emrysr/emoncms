@@ -55,7 +55,23 @@ listItem;
     }
 ?>
 <link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=<?php echo $v ?>">
-
+<style>
+    .loading {
+        animation: fade 1.6s linear infinite;
+    }
+    .bounce {
+        animation: bounce 2s linear infinite;
+    }
+    @keyframes fade {
+        0%,100% { opacity: 1 }
+        45%,55% { opacity: 0 }
+    }
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 
+        40% {transform: translateY(.4em);} 
+        60% {transform: translateY(.2em);} 
+    }
+</style>
 
 <h2><?php echo _('Administration'); ?></h2>
 
@@ -444,7 +460,9 @@ function getTranslations(){
         'New version available:': "<?php echo dgettext('theme_messages','New version available:') ?>",
         'Latest EmonCMS module version numbers downloaded': "<?php echo _('Latest EmonCMS module version numbers downloaded') ?>",
         'EmonCMS and EmonCMS Modules up to date': "<?php echo _('EmonCMS and EmonCMS Modules up to date') ?>",
-        'Checked': "<?php echo _('Checked') ?>"
+        'Checked': "<?php echo _('Checked') ?>",
+        'Downloading': "<?php echo _('Downloading') ?>",
+        'Checking': "<?php echo _('Checking') ?>"
     }
 }
 
@@ -909,7 +927,8 @@ var delay = 200;
 var prevent = false;
 // force update on double click
 $(".updates-available").on("click dblclick", "a", function(event) {
-    var $this = $(this)
+    var $this = $(this);
+    $this.blur();
     event.preventDefault();
     if(event.type === 'dblclick') {
         clearTimeout(timer);
@@ -936,22 +955,13 @@ function refresh_updates_button(force_update, event) {
     }
     $container = $('.updates-available');
     if(event) $container = $(event.target).parents('.updates-available').first();
-    if(force_update) {
-        // fade and rotate icon to indicate double click recognised:
-        $container.animate({opacity: 0}, {
-            step: function(now,fx) {
-                // take the opacity value (between 0 and 1) in the
-                //  current animation frame and convert to degrees
-                $(this).css('transform','rotate(-'+360/100*(now*100)+'deg)'); 
-            },
-            complete: function() {
-                // reset transform once animation complete
-                $container.css({transform: 'none'});
-            }
-        });
-    } else {
-        $container.animate({opacity: 0})
-    }
+    $container.toggleClass('bounce', force_update===true);
+    $container.toggleClass('loading', !force_update);
+
+    var link = $container.find('a');
+    link.data('original-title', link.attr('title'));
+    link.attr('title', (force_update===true ? _('Downloading'): _('Checking')) + '...');
+
     $.getJSON(url, function(response) {
         // once data is downloaded. stop the fadeOut and show result
         if(response && response.hasOwnProperty('updates') && response.updates.length > 0) {
@@ -980,6 +990,10 @@ function refresh_updates_button(force_update, event) {
                 }
             })
         }
+    })
+    .always(function(){
+        $container.removeClass('bounce loading');
+        link.attr('title', link.data('original-title'));
     });
 }
 /**
@@ -1003,7 +1017,7 @@ function makeUpdatesButton(versions, lastupdated, expires) {
         opacity = 1;
     }
     var html = '<a href="#" class="d-block text-right pr-2 %s" title="%s %s\n%s" data-expires="%s"> \
-    <svg class="icon update_available" style="width:25px;height:25px;opacity:%s"> \
+    <svg class="icon update_available" style="width:1.5rem;height:1.5rem;opacity:%s"> \
     <use xlink:href="#icon-box-add"></use> \
     </svg> \
     </a>'
