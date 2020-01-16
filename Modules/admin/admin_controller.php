@@ -565,10 +565,11 @@ function admin_controller()
                     // or if previously downloaded older than delay
                     // or if cache refresh forced
                     if(!isset($_SESSION['latest_modules']) || 
+                        (isset($_SESSION['latest_modules']) && empty($_SESSION['latest_modules'])) ||
                         (isset($_SESSION['latest_modules']['lastupdated']) && 
-                          $_SESSION['latest_modules']['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
-                          (isset($route->subaction) && $route->subaction === 'refresh')
-                        )
+                        $_SESSION['latest_modules']['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
+                        (isset($route->subaction) && $route->subaction === 'refresh')
+                    )
                     {
                         if(!empty($module["version"])) {
                             $api_url = sprintf($api_url_pattern, $repo);
