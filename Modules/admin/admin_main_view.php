@@ -954,8 +954,8 @@ function refresh_updates_button(force_update, event) {
     }
     $.getJSON(url, function(response) {
         // once data is downloaded. stop the fadeOut and show result
-        if(response && response.hasOwnProperty('versions') && response.versions.length > 0) {
-            $container.html(makeUpdatesButton(response.versions, response.lastupdated, response.expires))
+        if(response && response.hasOwnProperty('updates') && response.updates.length > 0) {
+            $container.html(makeUpdatesButton(response.updates, response.lastupdated, response.expires))
             $.each($container, function(i, elem) {
                 $(elem).stop(true,true).css({opacity: 1}).hide().fadeIn();
                 if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {

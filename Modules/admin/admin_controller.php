@@ -588,8 +588,7 @@ function admin_controller()
                         }
                     }
                     // use the cached version (new or previous)
-                    $cached = false;
-                    if(!empty($_SESSION['latest_modules'][$repo])) {
+                    if($cached = !empty($_SESSION['latest_modules'][$repo])) {
                         $cached = $_SESSION['latest_modules'][$repo];
                     }
 
@@ -607,12 +606,14 @@ function admin_controller()
                 }
                 //remove duplicates and re-index the array
                 $versionListToUpdate = array_values(array_unique($versionListToUpdate));
+                $lastupdated = isset($_SESSION['latest_modules']['lastupdated']) ? $_SESSION['latest_modules']['lastupdated']: time();
                 return array(
-                    "lastupdated" => $_SESSION['latest_modules']['lastupdated'],
+                    "lastupdated" => $lastupdated,
                     "expires" => intval(time() + $github_refresh_delay_mins*60),
                     "cache_updated" => $cache_updated,
                     "emoncms" => $emoncms_version,
-                    "versions" => $versionListToUpdate
+                    "updates" => $versionListToUpdate,
+                    "cached" => isset($_SESSION['latest_modules']) ? $_SESSION['latest_modules']: ''
                 );
             }
         }
