@@ -52,12 +52,12 @@ function admin_controller()
     );
 
     $path_to_config = 'settings.php';
-    
+    global $emoncms_version;
     if ($session['admin']) {
         if ($route->format == 'html') {
             if ($route->action == 'view') {
                 require "Modules/admin/admin_model.php";
-                global $path, $emoncms_version, $shutdownPi;
+                global $path, $shutdownPi;
 
                 // Shutdown / Reboot Code Handler
                 if (isset($_POST['shutdownPi'])) {
@@ -402,7 +402,7 @@ function admin_controller()
             else if ($route->action == 'system' && $session['write'])
             {
                 require "Modules/admin/admin_model.php";
-                global $path, $emoncms_version, $shutdownPi;
+                global $path, $shutdownPi;
 
                 // create array of installed services
                 $services = array();
@@ -515,90 +515,105 @@ function admin_controller()
             // return array of updatable items and the latest version numbers
             else if ($route->action == 'updates')
             {
-                global $emoncms_version;
                 require "Modules/admin/admin_model.php";
-                // @todo: look into other ways to get definitive version numbers
-
                 $versionListToUpdate = array();
-                $actualVersion = $emoncms_version;
                 // Get last stable version information
-                $lastStableVersion = http_request("GET","https://raw.githubusercontent.com/emoncms/emoncms/stable/version.txt",array());
-                if($lastStableVersion) {
-                    if(trim($actualVersion) != trim($lastStableVersion)) {
+                $api_url_pattern = "https://api.github.com/repos/emoncms/%s/releases/latest";
+                $api_url = sprintf($api_url_pattern, "emoncms");
+                // @todo: add an optional config setting to store a custom github "Personal access token"
+                // @todo: use token from the emoncms account & remove developer's token
+                // @see: https://github.com/settings/tokens
+                // @see: https://developer.github.com/v3/#rate-limiting
+                $token = "a7f5430ca08a20d9474a5e1264924723cf600d77"; // associated to https://github.com/emrysr (max.6000 requests per hour) 2020-01-15
+                if (isset($settings['github']['token'])) {
+                    $token = $settings['github']['token'];
+                }
+                if($apiResponse = http_request("GET", $api_url, array(), array("Authorization: token $token"))) {
+                    $lastStableVersion = '';
+                    try {
+                        $resp = json_decode($apiResponse);
+                        if(!isset($resp->id)) {
+                            $log->error('Github API response not as expected');
+                            return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
+                        }
+                        $lastStableVersion = isset($resp->tag_name) ? $resp->tag_name: '';
+                    } catch (Error $e) {
+                        $log->info('Unable to decode github api response');
+                    }
+                    if(version_compare($emoncms_version, $lastStableVersion) < 0) {
                         $versionListToUpdate[] = "Emoncms ".trim($lastStableVersion);
                     }
                 } else {
-                    return array('success'=>false,'message'=>'Error downloading latest version number','details'=>'Error 500. Apache DNS issue. Restart required.');
-                    
+                    return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
                 }
                 // for all modules with version number available get the current latest version numbers from stable branch
 
                 // cache github responses as session variable
                 $github_refresh_delay_mins = 5;
-
-                foreach($versions = Admin::get_modules_data() as $v) {
+                $modules = Admin::get_modules_data();
+                foreach($modules as $module) {
                     $cache_updated = false;
                     // if version number found check and add updatable modules to list
-                    $jsonAppName = $v['name'];
-                    $jsonVersion = $v['version'];
+                    $name = $module['name'];
+                    $repo = $module['repo'];
+                    $current_version = $module['version'];
                     
                     // Get JSON last stable version information
                     if(!isset($_SESSION['latest_modules'])) $_SESSION['latest_modules'] = array();
-                    if (empty($jsonVersion)) continue;
+                    // skip to next iteration if no version number to compare
+                    if (empty($current_version)) continue;
 
                     // download cache entry for this app if it doesn't exist
                     // or if previously downloaded older than delay
                     // or if cache refresh forced
-                    if(!isset($_SESSION['latest_modules'][$jsonAppName]) || 
-                        (isset($_SESSION['latest_modules'][$jsonAppName]['lastupdated']) && $_SESSION['latest_modules'][$jsonAppName]['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
-                        (isset($route->subaction) && $route->subaction === 'refresh') )
+                    if(!isset($_SESSION['latest_modules']) || 
+                        (isset($_SESSION['latest_modules']['lastupdated']) && 
+                          $_SESSION['latest_modules']['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
+                          (isset($route->subaction) && $route->subaction === 'refresh')
+                        )
                     {
-                        // @todo: check local path for module before requesting github file
-                        // could be module.json, feed-module/module.json or none
-                        
-                        $repoName = $v['repo_name'];
-                        $branch = $v['branch'];
-                        $jsonFileNameParts = array_filter(explode(DIRECTORY_SEPARATOR, $v['file']));
-                        $directory = $v['directory'];
-
-                        if(!empty($jsonFileNameParts)) {
-                            $jsonFileName = $jsonFileNameParts[2];
-
-                            // https://raw.githubusercontent.com/emoncms/backup/master/backup-module/module.json
-                            $pattern = "https://raw.githubusercontent.com/%s/%s/%s";
-                            $git_URL1 = sprintf($pattern,$repoName,$branch,$jsonFileName);
-                            if(!$jsonData = @file_get_contents($git_URL1)) {
-                                $git_URL2 = sprintf($pattern,$repoName,$branch,$directory.'-module'.DIRECTORY_SEPARATOR.$jsonFileName);
-                                if(!$jsonData = @file_get_contents($git_URL2)) {
-                                    $jsonData = false;
-                                }
+                        if(!empty($module["version"])) {
+                            $api_url = sprintf($api_url_pattern, $repo);
+                            $releases_api_response = http_request('GET', $api_url, array(), array("Authorization: token $token"));
+                            $resp = json_decode($releases_api_response);
+                            if(!isset($resp->id)) {
+                                // some modules will not have release details on github
+                                $log->info("No release details on Github for $name");
+                            } else {
+                                $latest_version = isset($resp->tag_name) ? $resp->tag_name: '';
+                                $_SESSION['latest_modules'][$repo] = array(
+                                    "name"=> $name,
+                                    "version"=> $latest_version
+                                );
                             }
-                
-                            $_SESSION['latest_modules'][$jsonAppName] = array(
-                                'lastupdated' => time(),
-                                'response' => json_decode($jsonData, true)
-                            );
                             $cache_updated = true;
                         }
                     }
                     // use the cached version (new or previous)
-                    $jsonRemote = !empty($_SESSION['latest_modules'][$jsonAppName]['response']) ? $_SESSION['latest_modules'][$jsonAppName]['response']: false;
+                    $cached = false;
+                    if(!empty($_SESSION['latest_modules'][$repo])) {
+                        $cached = $_SESSION['latest_modules'][$repo];
+                    }
 
-                    if(is_array($jsonRemote)){
-                        $jsonAppNameRemote = $jsonRemote['name'];
-                        $jsonVersionRemote = $jsonRemote['version'];
+                    if(is_array($cached)){
+                        $name = $cached['name'];
+                        $latest_version = $cached['version'];
                         // Compare actual and last stable versions of the module
-                        if ($jsonVersion && $jsonVersionRemote && $jsonVersion != $jsonVersionRemote){
-                            $versionListToUpdate[] = $jsonAppNameRemote." v".$jsonVersionRemote;
+                        if (version_compare($current_version, $latest_version) < 0){
+                            $versionListToUpdate[] = $name." v".$latest_version;
                         }
                     }
+                }
+                if ($cache_updated) {
+                    $_SESSION['latest_modules']['lastupdated'] = time();
                 }
                 //remove duplicates and re-index the array
                 $versionListToUpdate = array_values(array_unique($versionListToUpdate));
                 return array(
-                    "lastupdated" => array_values($_SESSION['latest_modules'])[0]['lastupdated'],
+                    "lastupdated" => $_SESSION['latest_modules']['lastupdated'],
                     "expires" => intval(time() + $github_refresh_delay_mins*60),
                     "cache_updated" => $cache_updated,
+                    "emoncms" => $emoncms_version,
                     "versions" => $versionListToUpdate
                 );
             }
@@ -624,16 +639,21 @@ function admin_controller()
         } else {
             // user not admin level display login
             $log->error(sprintf('%s|%s',_('Not Admin'), implode('/',array_filter(array($route->controller,$route->action,$route->subaction)))));
-            $message = urlencode(_('Admin Authentication Required'));
-            
-            $referrer = urlencode(base64_encode(filter_var($_SERVER['REQUEST_URI'] , FILTER_SANITIZE_URL)));
-            return sprintf(
-                '<div class="alert alert-warn mt-3"><h4 class="mb-1">%s</h4>%s. <a href="%s" class="alert-link">%s</a></div>', 
-                _('Admin Authentication Required'),
-                _('Session timed out or user not Admin'),
-                sprintf("%suser/logout?msg=%s&ref=%s",$path, $message, $referrer),
-                _('Re-authenticate to see this page')
-            );
+            $message = _('Admin Authentication Required');
+
+            if($route->format == 'json') {
+                return array("success"=>false,"message"=>$message);
+            } else {
+                $referrer = urlencode(base64_encode(filter_var($_SERVER['REQUEST_URI'] , FILTER_SANITIZE_URL)));
+                // header(sprintf("Location: %suser/logout?msg=%s&ref=%s",$path, urlencode($message), $referrer));
+                return sprintf(
+                    '<div class="alert alert-warn mt-3"><h4 class="mb-1">%s</h4>%s. <a href="%s" class="alert-link">%s</a></div>', 
+                    $message,
+                    _('Session timed out or user not Admin'),
+                    sprintf("%suser/logout?msg=%s&ref=%s",$path, urlencode($message), $referrer),
+                    _('Re-authenticate to see this page')
+                );
+            }
         }
     }
 

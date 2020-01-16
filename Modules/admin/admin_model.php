@@ -418,51 +418,86 @@ class Admin {
     }
 
     /**
-     * return list of installed modules and their versions (if available)
+     * return list of installed modules
+     * will return an array of details: current branch,name,installed version,http_url,latest_release
      *
      * @return array
      */
     public static function get_modules_data() {
-        $modulesDir = 'Modules';
-        $moduleFileName = "module.json";
+        global $path;
+        $githubUrl = "https://github.com";
+        $githubReleasesApi = "https://api.github.com/repos/emoncms/%s/releases/latest";
 
+        // read the module description file for each module
+        $modulesDir = "Modules";
+        $moduleFileName = "module.json";
         $emoncmsModulesPath = substr($_SERVER['SCRIPT_FILENAME'], 0, strrpos($_SERVER['SCRIPT_FILENAME'], DIRECTORY_SEPARATOR)).DIRECTORY_SEPARATOR.$modulesDir;  // Set the Modules path
         $emoncmsModuleFolders = glob("$emoncmsModulesPath/*", GLOB_ONLYDIR);                // Use glob to get all the folder names only
+        // loop through all module directories
         foreach($emoncmsModuleFolders as $emoncmsModuleFolder) {                            // loop through the folders
-            $directory = ltrim(str_replace($emoncmsModulesPath, '', $emoncmsModuleFolder), DIRECTORY_SEPARATOR);
-            $version = '';
+            // defaults
+            $version = "";
+            $jsonFileUrl = "";
+            $repoName = basename(exec("git -C $emoncmsModuleFolder rev-parse --show-toplevel"));
+            // use directory name as the default module name
+            $directory = ltrim(str_replace($emoncmsModulesPath, "", $emoncmsModuleFolder), DIRECTORY_SEPARATOR);
             $name = ucfirst($directory);
             // case in-sensitive pattern match the json file name
             $jsonFilePath = current(preg_grep(DIRECTORY_SEPARATOR.preg_quote($moduleFileName)."/i", glob(sprintf("%s%s%s",$emoncmsModuleFolder,DIRECTORY_SEPARATOR,"*"))));
-            if (file_exists($jsonFilePath)) {                         // JSON Version informatmion exists
-                $json = json_decode(file_get_contents($jsonFilePath));  // Get JSON version information
-                $name = $json->{'name'};
-                $version = $json->{'version'};
-                $relativeJsonFilePath = $modulesDir.str_replace($emoncmsModulesPath, '', $jsonFilePath);
-            } else {
-                $relativeJsonFilePath = '';
+            if (file_exists($jsonFilePath)) {          // JSON Version informatmion exists
+                $jsonFile = file_get_contents($jsonFilePath);
+                $json = json_decode($jsonFile, true);  // Get JSON version information
+                $name = $json["name"];
+                $version = $json["version"];
+                $jsonFileUrl = $path.$modulesDir.str_replace($emoncmsModulesPath, '', $jsonFilePath);
             }
-            $git_URL = '';
-            if(!empty($relativeJsonFilePath)) {
-                try {
-                    // read the git settings to get the current branch and url
-                    $branch = ltrim(exec("git -C $emoncmsModuleFolder branch --contains HEAD"), "* ");
-                    $repoUrl = exec("git -C $emoncmsModuleFolder ls-remote --get-url origin");
-                    $repoName = str_replace('https://github.com','',$repoUrl);
-                    $repoName = str_replace('git@github.com:','',$repoName);
-                    $repoName = str_replace('.git','',$repoName);
-                } catch(Exception $e) {
-                    // problem running git commands
+            // get the remote url for the latest commit
+            $head = exec("git -C $emoncmsModuleFolder symbolic-ref HEAD"); // refs/heads/master
+            $branch = exec("git -C $emoncmsModuleFolder for-each-ref --format='%(refname:short)' $head"); // master
+            $tracking = exec("git -C $emoncmsModuleFolder rev-parse --abbrev-ref --symbolic-full-name @{u}"); // origin/master
+            $remote = str_replace('/'.$branch, '', $tracking); // origin
+            $url = exec("git -C $emoncmsModuleFolder remote get-url $remote"); // https://github.com/emoncms/emoncms.git
+            // get github username from url
+            preg_match('/https:\/\/github\.com\/(.*)\/.*\.git/', $url, $matches);
+            if(empty($matches)) {
+                preg_match('/git@github\.com\:(.*)\/.*\.git/', $url, $matches);
+            }
+            $owner = !empty($matches) ? $matches[1] : '';
+            // find all git remote sources for each module
+            $remotes = explode("\n", trim(shell_exec("git -C $emoncmsModuleFolder remote")));
+            // create array to store this module's remote git locations
+            $remoteDetails = array();
+            foreach ($remotes as $remoteName) {
+                $remoteOwner = "?";
+                // github can have "https" or "git@" addresses for each repo
+                $remoteUrl = exec("git -C $emoncmsModuleFolder ls-remote --get-url $remoteName");
+                preg_match('/https:\/\/github\.com\/(.*)\/.*\.git/', $remoteUrl, $remoteMatches);
+                if(empty($remoteMatches)) {
+                    preg_match('/git@github\.com\:(.*)\/.*\.git/', $remoteUrl, $remoteMatches);
                 }
+                if(!empty($remoteMatches)){
+                    $remoteOwner = $remoteMatches[1];
+                }
+                $remoteDetails[] = array(
+                    "name"=> $remoteName,
+                    "owner"=> $remoteOwner,
+                    "html_url"=> sprintf("%s/%s/%s", $githubUrl, $remoteOwner, $repoName),
+                    "git"=> sprintf("git@github.com:%s/%s.git", $remoteOwner, $repoName),
+                    "https"=> sprintf("%s/%s/%s.git", $githubUrl, $remoteOwner, $repoName),
+                );
             }
-
             $emoncms_modules[] = array(
-                'name' => $name,
-                'directory' => $directory,
-                'version' => $version,
-                'file' => $relativeJsonFilePath,
-                'repo_name' => $repoName,
-                'branch' => $branch
+                "name"=> $name,
+                "directory"=> $directory,
+                "version"=> $version,
+                "jsonFile"=> $jsonFileUrl,
+                "owner"=> $owner,
+                "repo"=> $repoName,
+                "branch"=> $branch,
+                "remote"=> str_replace('/'.$branch,'',$tracking),
+                "remotes"=> $remoteDetails,
+                "original_url"=> sprintf("%s/%s/%s", $githubUrl, 'emoncms', $repoName),
+                "latest_release"=> sprintf($githubReleasesApi, $repoName)
             );
         }
         return $emoncms_modules;

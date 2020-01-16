@@ -146,7 +146,7 @@ function put($index) {
 function version(){
     $version_file = file_get_contents('./version.txt');
     $version = filter_var($version_file, FILTER_SANITIZE_STRING);
-    return $version;
+    return trim($version);
 }
 
 
@@ -233,26 +233,35 @@ function load_sidebar()
     return $sidebar;
 }
 
-function http_request($method,$url,$data) {
-
+function http_request($method,$url,$data=array(),$headers=array()) {
+    global $emoncms_version, $log;
     $options = array();
     $urlencoded = http_build_query($data);
     
     if ($method=="GET") { 
-        $url = "$url?$urlencoded";
+        if(!empty($urlencoded)) {
+            $url = "$url?$urlencoded";
+        }
     } else if ($method=="POST") {
         $options[CURLOPT_POST] = 1;
         $options[CURLOPT_POSTFIELDS] = $data;
     }
-    
+    if(!empty($headers)) {
+        $options[CURLOPT_HTTPHEADER] = $headers;
+    }
     $options[CURLOPT_URL] = $url;
     $options[CURLOPT_RETURNTRANSFER] = 1;
     $options[CURLOPT_CONNECTTIMEOUT] = 2;
     $options[CURLOPT_TIMEOUT] = 5;
-
+    $options[CURLOPT_USERAGENT] = "EmonCMS/$emoncms_version";
+    $options[CURLOPT_VERBOSE] = true;
+    
     $curl = curl_init();
     curl_setopt_array($curl,$options);
     $resp = curl_exec($curl);
+    if($resp === false) {
+        $log->error(__FILE__.':'.__LINE__.'|Curl error: ' . curl_error($curl));
+    }
     curl_close($curl);
     return $resp;
 }

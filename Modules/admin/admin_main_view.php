@@ -914,12 +914,12 @@ $(".updates-available").on("click dblclick", "a", function(event) {
     if(event.type === 'dblclick') {
         clearTimeout(timer);
         prevent = true;
-        refresh_updates_button(true);
+        refresh_updates_button(true, event);
     } else {
         timer = setTimeout(function() {
             var expired = $this.data('expires') < new Date().getTime()/1000|0 
             if (!prevent) {
-                refresh_updates_button(expired);
+                refresh_updates_button(expired, event);
             }
             prevent = false;
         }, delay);
@@ -929,12 +929,13 @@ $(".updates-available").on("click dblclick", "a", function(event) {
  * @param bool force_update true if required to recreate cached value
  * @return void - shows animation and updates DOM
  */
-function refresh_updates_button(force_update) {
+function refresh_updates_button(force_update, event) {
     var url = path + 'admin/updates.json'
     if (force_update) {
         url = path + 'admin/updates/refresh.json'
     }
     $container = $('.updates-available');
+    if(event) $container = $(event.target).parents('.updates-available').first();
     if(force_update) {
         // fade and rotate icon to indicate double click recognised:
         $container.animate({opacity: 0}, {
@@ -953,7 +954,7 @@ function refresh_updates_button(force_update) {
     }
     $.getJSON(url, function(response) {
         // once data is downloaded. stop the fadeOut and show result
-        if(response.versions.length > 0) {
+        if(response && response.hasOwnProperty('versions') && response.versions.length > 0) {
             $container.html(makeUpdatesButton(response.versions, response.lastupdated, response.expires))
             $.each($container, function(i, elem) {
                 $(elem).stop(true,true).css({opacity: 1}).hide().fadeIn();
@@ -966,7 +967,8 @@ function refresh_updates_button(force_update) {
                 }
             })
         } else {
-            $container.html(makeUpdatesButton(response.versions, response.lastupdated, response.expires))
+            // show faded/grayed out button. nothing to update
+            $container.html(makeUpdatesButton([], response.lastupdated, response.expires))
             $.each($container, function(i, elem) {
                 $(elem).stop(true,true).css({opacity: 1}).show();
                 if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
@@ -994,15 +996,15 @@ function makeUpdatesButton(versions, lastupdated, expires) {
     var label = _('EmonCMS and EmonCMS Modules up to date');
     var classes = 'muted';
     var opacity = 0.4;
-
-    if (versions.length > 0) {
+    
+    if (versions && versions.length > 0) {
         label = _('New version available:');
         classes = '';
         opacity = 1;
     }
     var html = '<a href="#" class="d-block text-right pr-2 %s" title="%s %s\n%s" data-expires="%s"> \
     <svg class="icon update_available" style="width:25px;height:25px;opacity:%s"> \
-    <use xlink:href="#icon-update_available"></use> \
+    <use xlink:href="#icon-box-add"></use> \
     </svg> \
     </a>'
     .replace('%s', classes)
