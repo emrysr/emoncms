@@ -135,33 +135,28 @@ ul#right-nav li.menu-user{
   padding: .25em;
   display: block;
 }
-a.grav-container img.grav {
+a.grav-container img.grav,
+a.grav-container svg {
   max-height: 1.2em;
-}
-a.grav-container img.grav {
   border: 2px solid #ccc;
 }
-a.grav-container:hover img.grav {
+a.grav-container:hover img.grav,
+a.grav-container:hover svg {
   border-color: #dedede;
 }
-a.is_admin.grav-container:hover img.grav {
-  border-color: #efefef;
+a.grav-container.is_admin:hover img.grav,
+a.grav-container.is_admin:hover svg {
+  border-color: #ffc107;
 }
-.no-gravitar a.grav-container {
+.no-gravitar a.grav-container{
+  background-color: transparent!important;
+}
+.no-gravitar a.grav-container svg{
   border-radius: 50%;
-  background: #c5c5c5;
-  padding: 0 !important;
-  text-align: center;
-  width: 1.36em;
-  height: 1.36em;
-  line-height: 1.37em;
-  border: 2px solid #ccc;
-  overflow: hidden;
-  margin: 0.2em;
+  background-color: #c5c5c5;
 }
 .no-gravitar a.grav-container .icon.user {
-  font-size: 1.66em;
-  margin: 0 -.1em;
+  font-size: 1.2em;
 }
 /* eof gravitar */
 

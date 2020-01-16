@@ -311,6 +311,23 @@ ul.nav > li > [disabled] {
     color: inherit;
 }
 
+/* small circle below the user's avitar to draw notice to notifications*/
+.update-indicator {
+    display: inline-block!important;
+    bottom:.2rem;
+    right: .4rem;
+    height: .7rem;
+    width: .7rem;
+    padding: 0 !important;
+    position: absolute;
+    font-size: 0;
+    line-height: 0;
+    border: 1px solid aliceblue;
+    border-radius: 50%;
+    background: #00d1b2;
+    margin-top: .2rem;
+}
+
 /* bs4 style grid 
 @todo: upgrade to bs4 if possible
 */

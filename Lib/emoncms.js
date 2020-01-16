@@ -118,32 +118,94 @@ window.onerror = function(msg, source, lineno, colno, error) {
     };
 }
 
+/**
+ * Notify user of available updates
+ * cache received responses from api to avoid excessive requests
+ */
 $(function() {
     var rightNav = $('#right-nav');
-    var userMenuDropdown = rightNav.find('.menu-user #user-dropdown');
-    var dropDown = rightNav.find('.menu-user .dropdown-menu');
+    // if interface has no #right-nav indicator cannot be shown
     if(rightNav.length > 0) {
-        $.getJSON('/emoncms/admin/updates.json', function(response) {
-            if(response.hasOwnProperty('updates') && response.updates.length > 0) {
-                var title = _('Updates Available:') + "\n" + response.updates.join(' | ');
-                var indicator = '<span title="' + title + '" style="bottom:0; right:0; position: absolute; font-size: small;border: 1px solid aliceblue;padding: .3em !important;line-height: 1;border-radius: 50%;background: #2eaadf;margin-top: .2em;">' +
-                '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
-                '</span>';
-                // fade in the updates indicator in the top nav
-                $(indicator).appendTo(userMenuDropdown).hide().fadeIn();
-
-                var menuItem = '<li>' +
-                '<a href="http://localhost/emoncms/admin/view" title="' + title + '" class="d-flex flex-nowrap justify-items-between">' +
-                '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
-                '<span class="ml-1 flex-fill">' + _('Updates Available') + '</span>' +
-                '</a></li>';
-                // show the link in the user dropdown under the divider
-                var separatorIndex = dropDown.find('.divider').index();
-                $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
+        var userMenuDropdown = rightNav.find('.menu-user #user-dropdown');
+        var dropDown = rightNav.find('.menu-user .dropdown-menu');
+        var local_updates;
+        // catch errors if localStorage doesn't exist in this browser
+        try {
+            local_updates = window.localStorage.getItem('emoncms_updates');
+        } catch (error) {
+            console.error(error);
+        }
+        // if cached responses exist, display the notification
+        if(local_updates) {
+            var response = null;
+            // catch errors if local_updates not valid json
+            try {
+                response = JSON.parse(local_updates);
+            } catch(error) {
+                console.error(error)
             }
-        })
-        .fail(function(xhr, error, message) {
-            console.error(error, message);
-        })
+            // if cache, old request new data
+            // @note: response.expires in unix time (seconds)
+            if(response.expires && response.expires * 1000 < new Date()) {
+                $.getJSON(path + 'admin/updates/refresh.json')
+                .done(function(response) {
+                    // cache response and show notification
+                    saveUpdatesToBrowser(response);
+                    showIndicator(response);
+                })
+                .fail(function(xhr, error, message) {
+                    console.error(error, message);
+                });
+            // if cache not expired
+            } else {
+                showIndicator(response);
+            }
+        // no cache exists, download list from api
+        } else {
+            $.getJSON(path + 'admin/updates.json')
+            .done(function(response) {
+                // cache response and show notification
+                saveUpdatesToBrowser(response);
+                showIndicator(response);
+            })
+            .fail(function(xhr, error, message) {
+                console.error(error, message);
+            })
+        }
+    }
+
+    /**
+     * use local storage to cache api response to avoid delays
+     * displays error in console if no local storage available
+     * @param {Object} response returned value from /admin/updates.json
+     */
+    function saveUpdatesToBrowser(response) {
+        try {
+            window.localStorage.setItem('emoncms_updates', JSON.stringify(response));
+        } catch(error) {
+            console.error(error);
+        }
+    }
+
+    /**
+     * show small dot under user dropdown and add menu item to user dropdown
+     * @param {Object} response returned value from /admin/updates.json
+     */
+    function showIndicator(response) {
+        if(response.updates && response.updates.length > 0) {
+            var title = _('Updates Available:') + "\n" + response.updates.join(' | ');
+            var indicator = '<span class="update-indicator" title="' + title + '"></span>';
+            // fade in the updates indicator in the top nav
+            $(indicator).appendTo(userMenuDropdown).hide().fadeIn();
+
+            var menuItem = '<li class="active update-available-menu-item">' +
+            '<a href="http://localhost/emoncms/admin/view" title="' + title + '" class="justify-items-between align-items-center justify-content-center">' +
+            '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
+            '<span class="ml-1 flex-fill">' + _('Updates Available') + '</span>' +
+            '</a></li>';
+            // show the link in the user dropdown under the divider
+            var separatorIndex = dropDown.find('.divider').index();
+            $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
+        }
     }
 })

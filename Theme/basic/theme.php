@@ -13,7 +13,7 @@ global $settings;
 global $ltime,$path,$emoncms_version,$menu;
 load_language_files("Theme/locale", "theme_messages");
 
-$v = 10;
+$v = 11;
 
 if (!is_dir("Theme/".$settings["interface"]["theme"])) {
     $settings["interface"]["theme"] = "basic";

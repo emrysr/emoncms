@@ -547,7 +547,7 @@ function admin_controller()
                 // for all modules with version number available get the current latest version numbers from stable branch
 
                 // cache github responses as session variable
-                $github_refresh_delay_mins = 5;
+                $github_refresh_delay_mins = 30;
                 $modules = Admin::get_modules_data();
                 foreach($modules as $module) {
                     $cache_updated = false;

@@ -215,7 +215,7 @@ function makeLink($params) {
         }else{
             $text = sprintf('%s<span class="ml-1 flex-fill">%s</span>', $icon, $text);
         }
-        $class[] = 'd-flex flex-nowrap justify-items-between';
+        $class[] = 'd-flex flex-nowrap justify-items-between align-items-center justify-content-center';
     }
     // add active class to link if link is to current page
     if (!empty($active)) {
