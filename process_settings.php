@@ -76,7 +76,11 @@ if (isset($settings["display_errors"]) && ($settings["display_errors"])) {
 function ini_merge($defaults, $overrides) {
     foreach ($overrides as $k => $v) {
         if (is_array($v)) {
-            $defaults[$k] = ini_merge($defaults[$k], $overrides[$k]);
+            if(!isset($defaults[$k])) {
+                $defaults[$k] = $overrides[$k];
+            } else {
+                $defaults[$k] = ini_merge($defaults[$k], $overrides[$k]);
+            }
         } else {
             if(isset($defaults[$k])){
                 $defaults[$k] = resolve_env_vars($v,$defaults[$k]);
