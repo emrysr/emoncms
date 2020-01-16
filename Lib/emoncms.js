@@ -146,7 +146,9 @@ $(function() {
             }
             // if cache, old request new data
             // @note: response.expires in unix time (seconds)
-            if(response.expires && response.expires * 1000 < new Date()) {
+            if((response.hasOwnProperty('success') && response.success === false) || 
+                response.hasOwnProperty('expires') && response.expires * 1000 < new Date())
+            {
                 $.getJSON(path + 'admin/updates/refresh.json')
                 .done(function(response) {
                     // cache response and show notification
@@ -180,6 +182,10 @@ $(function() {
      * @param {Object} response returned value from /admin/updates.json
      */
     function saveUpdatesToBrowser(response) {
+        // don't save un succesfull responses
+        if(response.hasOwnProperty('success') && response.success === false) {
+            return false;
+        }
         try {
             window.localStorage.setItem('emoncms_updates', JSON.stringify(response));
         } catch(error) {
