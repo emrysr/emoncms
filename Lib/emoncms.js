@@ -117,101 +117,204 @@ window.onerror = function(msg, source, lineno, colno, error) {
         return true; // true == prevents the firing of the default event handler.
     };
 }
+/**
+ * return promise object to allow the calling function to act on responses
+ * if ajax calls are made the ajax promise is returned
+ * if using local storage a custom promise is returned matching the ajax promise format
+ */
+function get_updates(ignore_local, clear_cache) {
+    var local_updates = false;
+    var deferred = $.Deferred();
+    var cached_path = "admin/updates.json"; // cached (unless old) version
+    var fresh_path  = "admin/updates/refresh.json"; // un-cached version
 
+    if (ignore_local===true) {
+        // clear local cache of update version
+        try {
+            window.localStorage.removeItem("emoncms_updates");
+        } catch(error) {
+            console.error(error);
+        }
+    } else {
+        // reject if localStorage doesn't exist in this browser
+        try {
+            local_updates = window.localStorage.getItem('emoncms_updates');
+        } catch (error) {
+            deferred.reject(null, 'No localStorage', error);
+        }
+    }
+
+    // if cached responses exist, display the notification
+    if(local_updates) {
+        var response = null;
+        // catch errors if local_updates not valid json
+        try {
+            response = JSON.parse(local_updates);
+        } catch(error) {
+            deferred.reject(null, 'Cache invalid', error);
+        }
+        // if cache expired, request new data
+        // @note: response.expires in unix time (seconds)
+        if((response.hasOwnProperty('success') && response.success === false) || 
+            response.hasOwnProperty('expires') && response.expires * 1000 < new Date())
+        {
+            // return promise and wait for cache busting version
+            return $.getJSON(path + fresh_path)
+            
+        // if cache not expired, respond with cached version
+        } else {
+            deferred.resolve(response);
+        }
+    // no cache exists, download list from api
+    } else {
+        // force cache to be updated or just download cached version
+        var url = path + (!clear_cache ? cached_path: fresh_path);
+        return $.getJSON(url);
+    }
+    return deferred.promise();
+}
 /**
  * Notify user of available updates
  * cache received responses from api to avoid excessive requests
  */
 $(function() {
-    var rightNav = $('#right-nav');
+    if(!document.body.classList.contains("update_checker")) return false;
     // if interface has no #right-nav indicator cannot be shown
-    if(rightNav.length > 0) {
-        var userMenuDropdown = rightNav.find('.menu-user #user-dropdown');
-        var dropDown = rightNav.find('.menu-user .dropdown-menu');
-        var local_updates;
-        // catch errors if localStorage doesn't exist in this browser
-        try {
-            local_updates = window.localStorage.getItem('emoncms_updates');
-        } catch (error) {
-            console.error(error);
-        }
-        // if cached responses exist, display the notification
-        if(local_updates) {
-            var response = null;
-            // catch errors if local_updates not valid json
-            try {
-                response = JSON.parse(local_updates);
-            } catch(error) {
-                console.error(error)
-            }
-            // if cache, old request new data
-            // @note: response.expires in unix time (seconds)
-            if((response.hasOwnProperty('success') && response.success === false) || 
-                response.hasOwnProperty('expires') && response.expires * 1000 < new Date())
-            {
-                $.getJSON(path + 'admin/updates/refresh.json')
-                .done(function(response) {
-                    // cache response and show notification
-                    saveUpdatesToBrowser(response);
-                    showIndicator(response);
-                })
-                .fail(function(xhr, error, message) {
-                    console.error(error, message);
-                });
-            // if cache not expired
-            } else {
-                showIndicator(response);
-            }
-        // no cache exists, download list from api
-        } else {
-            $.getJSON(path + 'admin/updates.json')
+    if($('#right-nav').length === 0) return false;
+
+    showGetUpdates();
+    get_updates()
+    .done(function(response) {
+        // cache response and show notification
+        saveUpdatesToBrowser(response);
+        showUpdatesIndicator(response);
+    })
+    .fail(function(xhr, error, message) {
+        console.error(error, message);
+    });
+
+    function showGetUpdates(response) {
+        var title = _('Check for updates');
+        var dropDown = $('#right-nav .menu-user .dropdown-menu');
+
+        var menuItem = '<li id="get-updates" class="update-available-menu-item">' +
+            '<a href="' + path + 'admin/view" title="' + title + '..." class="justify-items-between align-items-center justify-content-center">' +
+            '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
+            '<span class="ml-1 flex-fill">' + title + '</span>' +
+            '</a></li>';
+        // show the link in the user dropdown under the divider
+        var separatorIndex = dropDown.find('.divider').index();
+        var item = $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
+        var link = item.find('a');
+        get_updates()
+        .done(function(response) {
+            // cache response and show notification
+            saveUpdatesToBrowser(response);
+            showUpdatesIndicator(response);
+            showUpdatesAvailable(response, item);
+        })
+        .fail(function(xhr, error, message) {
+            console.error(error, message);
+            link.attr('title','');
+        });
+
+        item.on('click', function(event) {
+            var $this = $(this);
+            if($this.hasClass('disabled')) return false;
+            var icon = $this.find('svg')[0];
+            var loadingClass = 'loading';
+            var activeClass = 'active';
+            var disabledClass = 'disabled';
+
+            // follow link to admin/view if class='active'
+            if($this.hasClass(activeClass)) return true;
+            event.preventDefault();
+            $this.addClass(disabledClass);
+            icon.classList.add(loadingClass);
+            get_updates(true,false,event)
             .done(function(response) {
                 // cache response and show notification
                 saveUpdatesToBrowser(response);
-                showIndicator(response);
+                showUpdatesIndicator(response);
+                $(document).trigger('emoncms:versions:loaded', response);
             })
             .fail(function(xhr, error, message) {
                 console.error(error, message);
             })
-        }
-    }
-
-    /**
-     * use local storage to cache api response to avoid delays
-     * displays error in console if no local storage available
-     * @param {Object} response returned value from /admin/updates.json
-     */
-    function saveUpdatesToBrowser(response) {
-        // don't save un succesfull responses
-        if(response.hasOwnProperty('success') && response.success === false) {
+            .always(function(response){
+                $this.removeClass(disabledClass);
+                icon.classList.remove(loadingClass);
+                // change the link if updates available
+                showUpdatesAvailable(response, $this);
+            })
             return false;
-        }
-        try {
-            window.localStorage.setItem('emoncms_updates', JSON.stringify(response));
-        } catch(error) {
-            console.error(error);
-        }
-    }
-
-    /**
-     * show small dot under user dropdown and add menu item to user dropdown
-     * @param {Object} response returned value from /admin/updates.json
-     */
-    function showIndicator(response) {
-        if(response.updates && response.updates.length > 0) {
-            var title = _('Updates Available:') + "\n" + response.updates.join(' | ');
-            var indicator = '<span class="update-indicator" title="' + title + '"></span>';
-            // fade in the updates indicator in the top nav
-            $(indicator).appendTo(userMenuDropdown).hide().fadeIn();
-
-            var menuItem = '<li class="active update-available-menu-item">' +
-            '<a href="http://localhost/emoncms/admin/view" title="' + title + '" class="justify-items-between align-items-center justify-content-center">' +
-            '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
-            '<span class="ml-1 flex-fill">' + _('Updates Available') + '</span>' +
-            '</a></li>';
-            // show the link in the user dropdown under the divider
-            var separatorIndex = dropDown.find('.divider').index();
-            $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
-        }
+        })
     }
 })
+
+/**
+ * use local storage to cache api response to avoid delays
+ * displays error in console if no local storage available
+ * @param {Object} response returned value from /admin/updates.json
+ */
+function saveUpdatesToBrowser(response) {
+    // don't save un successful responses
+    if(response.hasOwnProperty('success') && response.success === false) {
+        return false;
+    }
+    try {
+        window.localStorage.setItem('emoncms_updates', JSON.stringify(response));
+    } catch(error) {
+        console.error(error);
+    }
+}
+
+/**
+ * show small dot under user dropdown and add menu item to user dropdown
+ * @param {Object} response returned value from /admin/updates.json
+ */
+function showUpdatesIndicator(response) {
+    var indicator = $('#update-indicator');
+    if(response.updates && response.updates.length > 0) {
+        // fade in the updates indicator in the top nav
+        if(indicator.length === 0) {
+            var userMenuDropdown = $('#right-nav .menu-user #user-dropdown');
+            var title = _('Updates Available:') + "\n" + response.updates.join(' | ');
+            var html = '<span id="update-indicator" class="update-indicator" title="' + title + '"></span>';
+            indicator = $(html).appendTo(userMenuDropdown);
+        }
+        indicator.fadeIn();
+    } else {
+        indicator.fadeOut();
+    }
+}
+
+ /**
+ * @param {Object} response from /admin/updates.json
+ * @param {Object<jQuerySelector>} element the <li> element in the menu
+ */
+function showUpdatesAvailable(response, elem) {
+    var link = elem.find('a');
+    var linkText = link.find('span');
+    var activeClass = 'active';
+    var updates = response.updates || [];
+    if(!elem.data('original-text')) elem.data('original-text', linkText.text());
+    if(updates.length > 0) {
+        link.attr('title', updates.join(' | '));
+        linkText.text(_('Updates Available'));
+        elem.addClass(activeClass);
+    } else {
+        link.attr('title', elem.data('original-text'));
+        linkText.text(elem.data('original-text'));
+        elem.removeClass(activeClass);
+        link.blur();
+    }
+    var lastupdated = response.lastupdated || false;
+    if(lastupdated) {
+        var title = [
+            link.attr('title'), 
+            _('Checked ') + moment.unix(lastupdated).fromNow()
+        ].filter(Boolean);
+        link.attr('title', title.join("\n"));
+    }
+}

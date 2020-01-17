@@ -517,6 +517,9 @@ function admin_controller()
             {
                 require "Modules/admin/admin_model.php";
                 $versionListToUpdate = array();
+                $cache_index = "latest_modules";
+                $github_refresh_delay_mins = 30;
+
                 // Get last stable version information
                 $api_url_pattern = "https://api.github.com/repos/emoncms/%s/releases/latest";
                 $api_url = sprintf($api_url_pattern, "emoncms");
@@ -526,28 +529,40 @@ function admin_controller()
                     return array("success"=>false,"message"=>"Github Access Token missing","details"=>"https://github.com/settings/tokens");
                     $log->error('No github access token in settings');
                 }
-                if($apiResponse = http_request("GET", $api_url, array(), array("Authorization: token $token"))) {
-                    $lastStableVersion = '';
-                    try {
-                        $resp = json_decode($apiResponse);
-                        if(!isset($resp->id)) {
-                            $log->error('Github API response not as expected');
-                            return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
+                // only request stable release version when "updates/refresh.json" called
+                // or if cache expired
+                if(!isset($_SESSION[$cache_index]) || 
+                    (isset($_SESSION[$cache_index]) && empty($_SESSION[$cache_index])) ||
+                    (isset($_SESSION[$cache_index]['lastupdated']) && 
+                    $_SESSION[$cache_index]['lastupdated'] < time() - ($github_refresh_delay_mins * 60)) ||
+                    (isset($route->subaction) && $route->subaction === 'refresh')
+                ) {
+                    // empty cache before re-populating
+                    $_SESSION[$cache_index] = array();
+                    if($apiResponse = http_request("GET", $api_url, array(), array("Authorization: token $token"))) {
+                        $lastStableVersion = '';
+                        try {
+                            $resp = json_decode($apiResponse);
+                            if(!isset($resp->id)) {
+                                $log->error('Github API response not as expected');
+                                return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
+                            }
+                            $lastStableVersion = isset($resp->tag_name) ? $resp->tag_name: '';
+                            $_SESSION[$cache_index]['emoncms'] = $lastStableVersion;
+                        } catch (Error $e) {
+                            $log->info('Unable to decode github api response');
                         }
-                        $lastStableVersion = isset($resp->tag_name) ? $resp->tag_name: '';
-                    } catch (Error $e) {
-                        $log->info('Unable to decode github api response');
+                    } else {
+                        return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
                     }
-                    if(version_compare($emoncms_version, $lastStableVersion) < 0) {
-                        $versionListToUpdate[] = "Emoncms ".trim($lastStableVersion);
-                    }
-                } else {
-                    return array('success'=>false,'message'=>'Error downloading latest version number','details'=>$api_url);
                 }
+                if(version_compare($emoncms_version, $_SESSION[$cache_index]['emoncms']) < 0) {
+                    $versionListToUpdate[] = "Emoncms ".$_SESSION[$cache_index]['emoncms'];
+                }
+
                 // for all modules with version number available get the current latest version numbers from stable branch
 
                 // cache github responses as session variable
-                $github_refresh_delay_mins = 30;
                 $modules = Admin::get_modules_data();
                 foreach($modules as $module) {
                     $cache_updated = false;
@@ -557,17 +572,17 @@ function admin_controller()
                     $current_version = $module['version'];
                     
                     // Get JSON last stable version information
-                    if(!isset($_SESSION['latest_modules'])) $_SESSION['latest_modules'] = array();
+                    if(!isset($_SESSION[$cache_index])) $_SESSION[$cache_index] = array();
                     // skip to next iteration if no version number to compare
                     if (empty($current_version)) continue;
 
                     // download cache entry for this app if it doesn't exist
                     // or if previously downloaded older than delay
                     // or if cache refresh forced
-                    if(!isset($_SESSION['latest_modules']) || 
-                        (isset($_SESSION['latest_modules']) && empty($_SESSION['latest_modules'])) ||
-                        (isset($_SESSION['latest_modules']['lastupdated']) && 
-                        $_SESSION['latest_modules']['lastupdated'] < time() - 60 * $github_refresh_delay_mins) ||
+                    if(!isset($_SESSION[$cache_index]) || 
+                        (isset($_SESSION[$cache_index]) && empty($_SESSION[$cache_index])) ||
+                        (isset($_SESSION[$cache_index]['lastupdated']) && 
+                        $_SESSION[$cache_index]['lastupdated'] < time() - ($github_refresh_delay_mins * 60)) ||
                         (isset($route->subaction) && $route->subaction === 'refresh')
                     )
                     {
@@ -580,7 +595,7 @@ function admin_controller()
                                 $log->info("No release details on Github for $name");
                             } else {
                                 $latest_version = isset($resp->tag_name) ? $resp->tag_name: '';
-                                $_SESSION['latest_modules'][$repo] = array(
+                                $_SESSION[$cache_index]['modules'][$repo] = array(
                                     "name"=> $name,
                                     "version"=> $latest_version
                                 );
@@ -589,8 +604,8 @@ function admin_controller()
                         }
                     }
                     // use the cached version (new or previous)
-                    if($cached = !empty($_SESSION['latest_modules'][$repo])) {
-                        $cached = $_SESSION['latest_modules'][$repo];
+                    if($cached = !empty($_SESSION[$cache_index]['modules'][$repo])) {
+                        $cached = $_SESSION[$cache_index]['modules'][$repo];
                     }
 
                     if(is_array($cached)){
@@ -603,18 +618,18 @@ function admin_controller()
                     }
                 }
                 if ($cache_updated) {
-                    $_SESSION['latest_modules']['lastupdated'] = time();
+                    $_SESSION[$cache_index]['lastupdated'] = time();
                 }
                 //remove duplicates and re-index the array
                 $versionListToUpdate = array_values(array_unique($versionListToUpdate));
-                $lastupdated = isset($_SESSION['latest_modules']['lastupdated']) ? $_SESSION['latest_modules']['lastupdated']: time();
+                $lastupdated = isset($_SESSION[$cache_index]['lastupdated']) ? $_SESSION[$cache_index]['lastupdated']: time();
                 return array(
                     "lastupdated" => $lastupdated,
                     "expires" => intval(time() + $github_refresh_delay_mins*60),
                     "cache_updated" => $cache_updated,
                     "emoncms" => $emoncms_version,
                     "updates" => $versionListToUpdate,
-                    "cached" => isset($_SESSION['latest_modules']) ? $_SESSION['latest_modules']: ''
+                    "cached" => isset($_SESSION[$cache_index]) ? $_SESSION[$cache_index]: ''
                 );
             }
         }

@@ -371,6 +371,9 @@
             } else {
                 if (!in_array("manual",$output['page_classes'])) $output['page_classes'][] = 'auto';
             }
+            if($settings['interface']['enable_update_ui'] === true) {
+                $output['page_classes'][] = 'update_checker';
+            }
             print view($themeDir . "theme.php", $output);
         }
     }

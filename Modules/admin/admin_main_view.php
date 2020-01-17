@@ -55,23 +55,6 @@ listItem;
     }
 ?>
 <link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=<?php echo $v ?>">
-<style>
-    .loading {
-        animation: fade 1.6s linear infinite;
-    }
-    .bounce {
-        animation: bounce 2s linear infinite;
-    }
-    @keyframes fade {
-        0%,100% { opacity: 1 }
-        45%,55% { opacity: 0 }
-    }
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 
-        40% {transform: translateY(.4em);} 
-        60% {transform: translateY(.2em);} 
-    }
-</style>
 
 <h2><?php echo _('Administration'); ?></h2>
 
@@ -788,7 +771,7 @@ $(".update").click(function() {
       refresh_updateLog(result);
       // autoupdate every 1s
       updates_log_interval = refresherStart(getUpdateLog, 1000)
-      refresh_updates_button();
+      refresh_updates_button(true);
     }
   });
 });
@@ -912,7 +895,6 @@ function notify(message, css_class, more_info) {
 
 // get a list of updatable modules and display an indicator to user
 refresh_updates_button();
-
 // hide/show indicator near dropdown or near shown section
 $(document).on('click', '[data-toggle=collapse]', function(event){
     event.preventDefault();
@@ -933,68 +915,96 @@ $(".updates-available").on("click dblclick", "a", function(event) {
     if(event.type === 'dblclick') {
         clearTimeout(timer);
         prevent = true;
-        refresh_updates_button(true, event);
+        refresh_updates_button(true, true, event);
     } else {
         timer = setTimeout(function() {
-            var expired = $this.data('expires') < new Date().getTime()/1000|0 
             if (!prevent) {
-                refresh_updates_button(expired, event);
+                refresh_updates_button(true, false, event);
             }
             prevent = false;
         }, delay);
     }
 });
+// listen to updates list being updated else-where
+$(document).on("emoncms:versions:loaded", function(event, response) {
+    // update icon if required
+    $(".updates-available").html(makeUpdatesButton(response.updates, response.lastupdated, response.expires))
+})
+
 /**
  * @param bool force_update true if required to recreate cached value
  * @return void - shows animation and updates DOM
  */
-function refresh_updates_button(force_update, event) {
-    var url = path + 'admin/updates.json'
-    if (force_update) {
-        url = path + 'admin/updates/refresh.json'
+function refresh_updates_button(ignore_local, clear_cache, event) {
+
+    // show a loading animation
+    $container = $(".updates-available");
+    // if function called by click, only animate the clicked item
+    if(event) $container = $(event.target).parents(".updates-available").first();
+    if(ignore_local === true) {
+        $container.addClass("loading");
     }
-    $container = $('.updates-available');
-    if(event) $container = $(event.target).parents('.updates-available').first();
-    $container.toggleClass('bounce', force_update===true);
-    $container.toggleClass('loading', !force_update);
+    if(clear_cache === true) {
+        $container.addClass("bounce");
+    }
 
-    var link = $container.find('a');
-    link.data('original-title', link.attr('title'));
-    link.attr('title', (force_update===true ? _('Downloading'): _('Checking')) + '...');
+    // set the tooltip text (storing existing title until end)
+    var link = $container.find("a");
+    var title = false;
+    if(ignore_local === true) {
+        title = _("Checking");
+    }
+    if(clear_cache === true) {
+        title = _("Downloading");
+    }
+    if(title) {
+        link.data("original-title", link.attr("title"));
+        link.attr("title", title + '...');
+    }
+    
+    // @see: Lib/emoncms.js
+    if(typeof get_updates === "function") {
+        get_updates(ignore_local, clear_cache)
+        .done(function(response) {
+            // cache response and show notification
+            // once data is downloaded. stop the fadeOut and show result
+            if(response && response.hasOwnProperty('updates') && response.updates.length > 0) {
+                $container.html(makeUpdatesButton(response.updates, response.lastupdated, response.expires))
+                $.each($container, function(i, elem) {
+                    $(elem).stop(true,true).css({opacity: 1}).hide().fadeIn();
+                    if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
+                        // only show notice to user if not done on page load
+                        notify(_('Latest EmonCMS module version numbers downloaded'));
+                    } else {
+                        // if not first run delete value to allow notifictation to show
+                        delete elem.dataset.firstRun;
+                    }
+                })
+            } else {
+                // show faded/grayed out button. nothing to update
+                $container.html(makeUpdatesButton([], response.lastupdated, response.expires))
+                $.each($container, function(i, elem) {
+                    $(elem).stop(true,true).css({opacity: 1}).show();
+                    if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
+                        notify(_('EmonCMS and EmonCMS Modules up to date'));
+                    } else {
+                        delete elem.dataset.firstRun;
+                    }
+                })
+            }
+        })
+        .fail(function(xhr, error, message) {
+            console.error(error, message);
+        })
+        .always(function(response){
+            $container.removeClass('bounce loading');
+            link.attr('title', link.data('original-title'));
+            if(typeof saveUpdatesToBrowser === 'function') saveUpdatesToBrowser(response);
+            if(typeof showUpdatesIndicator === 'function') showUpdatesIndicator(response);
+            if(typeof showUpdatesAvailable === 'function') showUpdatesAvailable(response, $('#get-updates'));
+        });
+    }
 
-    $.getJSON(url, function(response) {
-        // once data is downloaded. stop the fadeOut and show result
-        if(response && response.hasOwnProperty('updates') && response.updates.length > 0) {
-            $container.html(makeUpdatesButton(response.updates, response.lastupdated, response.expires))
-            $.each($container, function(i, elem) {
-                $(elem).stop(true,true).css({opacity: 1}).hide().fadeIn();
-                if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
-                    // only show notice to user if not done on page load
-                    notify(_('Latest EmonCMS module version numbers downloaded'));
-                } else {
-                    // if not first run delete value to allow notifictation to show
-                    delete elem.dataset.firstRun;
-                }
-            })
-        } else {
-            // show faded/grayed out button. nothing to update
-            $container.html(makeUpdatesButton([], response.lastupdated, response.expires))
-            $.each($container, function(i, elem) {
-                $(elem).stop(true,true).css({opacity: 1}).show();
-                if(typeof elem.dataset.firstRun === 'undefined' && response.cache_updated) {
-                    // @todo: only show main indicator when dropdown hidden, else hide
-                    // @todo: only show dropdown indicator when dropdown shown, else hide
-                    notify(_('EmonCMS and EmonCMS Modules up to date'));
-                } else {
-                    delete elem.dataset.firstRun;
-                }
-            })
-        }
-    })
-    .always(function(){
-        $container.removeClass('bounce loading');
-        link.attr('title', link.data('original-title'));
-    });
 }
 /**
  * produces the html for an indicator that shows available updates
