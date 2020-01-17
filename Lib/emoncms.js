@@ -253,10 +253,13 @@ function showUpdatesAvailable(response, elem) {
     }
     var lastupdated = response.lastupdated || false;
     if(lastupdated) {
-        var title = [
-            link.attr('title'), 
-            _('Checked ') + moment.unix(lastupdated).fromNow()
-        ].filter(Boolean);
+        var title = [link.attr('title')];
+        if(typeof moment !== 'undefined') {
+            title = [ 
+                link.attr('title'), 
+                _('Checked ') + moment.unix(lastupdated).fromNow()
+            ].filter(Boolean);
+        }
         link.attr('title', title.join("\n"));
     }
 }
@@ -269,7 +272,7 @@ function showUpdatesAvailable(response, elem) {
  * @param {MouseEvent} event 
  */
 function onClick_checkForUpdates(event) {
-    var $this = $(this);
+    var $this = $(event.currentTarget);
     if($this.hasClass('disabled')) return false;
     var icon = $this.find('svg')[0];
     var loadingClass = 'loading';
@@ -278,26 +281,33 @@ function onClick_checkForUpdates(event) {
 
     // follow link to admin/view if class='active'
     if($this.hasClass(activeClass)) return true;
-    event.preventDefault();
     $this.addClass(disabledClass);
     icon.classList.add(loadingClass);
     get_updates(true,false,event)
     .done(function(response) {
-        // cache response and show notification
-        saveUpdatesToBrowser(response);
-        showUpdatesIndicator(response);
-        $(document).trigger('emoncms:versions:loaded', response);
+        if(response.hasOwnProperty('success') && response.success === false) {
+            console.error(response.message);
+            $('#get-updates').addClass('disabled')
+            .find('span').attr('title', response.message);
+            document.body.classList.remove('admin');
+        } else {
+            // cache response and show notification
+            saveUpdatesToBrowser(response);
+            showUpdatesIndicator(response);
+            $(document).trigger('emoncms:versions:loaded', response);
+            $this.removeClass(disabledClass);
+        }
     })
     .fail(function(xhr, error, message) {
         console.error(error, message);
     })
     .always(function(response){
-        $this.removeClass(disabledClass);
         icon.classList.remove(loadingClass);
         // change the link if updates available
         showUpdatesAvailable(response, $this);
     })
-    return false;
+    event.preventDefault();
+    return false
 }
 /**
  * Display a menu item in the "user menu"
@@ -329,5 +339,5 @@ function showGetUpdates(response) {
         link.attr('title','');
     });
 
-    item.on('click', onClick_checkForUpdates)
+    item.on('click', onClick_checkForUpdates);
 }
