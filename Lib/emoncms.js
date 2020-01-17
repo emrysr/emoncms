@@ -192,64 +192,6 @@ $(function() {
     .fail(function(xhr, error, message) {
         console.error(error, message);
     });
-
-    function showGetUpdates(response) {
-        var title = _('Check for updates');
-        var dropDown = $('#right-nav .menu-user .dropdown-menu');
-
-        var menuItem = '<li id="get-updates" class="update-available-menu-item">' +
-            '<a href="' + path + 'admin/view" title="' + title + '..." class="justify-items-between align-items-center justify-content-center">' +
-            '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
-            '<span class="ml-1 flex-fill">' + title + '</span>' +
-            '</a></li>';
-        // show the link in the user dropdown under the divider
-        var separatorIndex = dropDown.find('.divider').index();
-        var item = $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
-        var link = item.find('a');
-        get_updates()
-        .done(function(response) {
-            // cache response and show notification
-            saveUpdatesToBrowser(response);
-            showUpdatesIndicator(response);
-            showUpdatesAvailable(response, item);
-        })
-        .fail(function(xhr, error, message) {
-            console.error(error, message);
-            link.attr('title','');
-        });
-
-        item.on('click', function(event) {
-            var $this = $(this);
-            if($this.hasClass('disabled')) return false;
-            var icon = $this.find('svg')[0];
-            var loadingClass = 'loading';
-            var activeClass = 'active';
-            var disabledClass = 'disabled';
-
-            // follow link to admin/view if class='active'
-            if($this.hasClass(activeClass)) return true;
-            event.preventDefault();
-            $this.addClass(disabledClass);
-            icon.classList.add(loadingClass);
-            get_updates(true,false,event)
-            .done(function(response) {
-                // cache response and show notification
-                saveUpdatesToBrowser(response);
-                showUpdatesIndicator(response);
-                $(document).trigger('emoncms:versions:loaded', response);
-            })
-            .fail(function(xhr, error, message) {
-                console.error(error, message);
-            })
-            .always(function(response){
-                $this.removeClass(disabledClass);
-                icon.classList.remove(loadingClass);
-                // change the link if updates available
-                showUpdatesAvailable(response, $this);
-            })
-            return false;
-        })
-    }
 })
 
 /**
@@ -289,7 +231,7 @@ function showUpdatesIndicator(response) {
     }
 }
 
- /**
+/**
  * @param {Object} response from /admin/updates.json
  * @param {Object<jQuerySelector>} element the <li> element in the menu
  */
@@ -317,4 +259,75 @@ function showUpdatesAvailable(response, elem) {
         ].filter(Boolean);
         link.attr('title', title.join("\n"));
     }
+}
+/**
+ * captures click of dropdown item
+ * performs ajax call to re-load available system updates
+ * displays 'available' or 'not available' type messages
+ * 
+ * @return {Boolean} true = continue, false = ignore the click
+ * @param {MouseEvent} event 
+ */
+function onClick_checkForUpdates(event) {
+    var $this = $(this);
+    if($this.hasClass('disabled')) return false;
+    var icon = $this.find('svg')[0];
+    var loadingClass = 'loading';
+    var activeClass = 'active';
+    var disabledClass = 'disabled';
+
+    // follow link to admin/view if class='active'
+    if($this.hasClass(activeClass)) return true;
+    event.preventDefault();
+    $this.addClass(disabledClass);
+    icon.classList.add(loadingClass);
+    get_updates(true,false,event)
+    .done(function(response) {
+        // cache response and show notification
+        saveUpdatesToBrowser(response);
+        showUpdatesIndicator(response);
+        $(document).trigger('emoncms:versions:loaded', response);
+    })
+    .fail(function(xhr, error, message) {
+        console.error(error, message);
+    })
+    .always(function(response){
+        $this.removeClass(disabledClass);
+        icon.classList.remove(loadingClass);
+        // change the link if updates available
+        showUpdatesAvailable(response, $this);
+    })
+    return false;
+}
+/**
+ * Display a menu item in the "user menu"
+ * Menu item to trigger update check
+ * @param {Object} response same as the data returned from /admin/updates.json
+ */
+function showGetUpdates(response) {
+    var title = _('Check for updates');
+    var dropDown = $('#right-nav .menu-user .dropdown-menu');
+
+    var menuItem = '<li id="get-updates" class="update-available-menu-item">' +
+        '<a href="' + path + 'admin/view" title="' + title + '..." class="justify-items-between align-items-center justify-content-center">' +
+        '<svg class="icon update_available"><use xlink:href="#icon-box-add"></use></svg>' +
+        '<span class="ml-1 flex-fill">' + title + '</span>' +
+        '</a></li>';
+    // show the link in the user dropdown under the divider
+    var separatorIndex = dropDown.find('.divider').index();
+    var item = $(menuItem).insertAfter(dropDown.find('li:eq(' + separatorIndex + ')'));
+    var link = item.find('a');
+    get_updates()
+    .done(function(response) {
+        // cache response and show notification
+        saveUpdatesToBrowser(response);
+        showUpdatesIndicator(response);
+        showUpdatesAvailable(response, item);
+    })
+    .fail(function(xhr, error, message) {
+        console.error(error, message);
+        link.attr('title','');
+    });
+
+    item.on('click', onClick_checkForUpdates)
 }
